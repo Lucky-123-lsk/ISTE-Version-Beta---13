@@ -14,3 +14,4 @@ npm run dev
 Open http://localhost:5173. Build the client with `npm run build`; run only the API with `npm start --prefix server`.
 
 The API includes demo auth (`POST /api/auth/demo`), jobs, saved jobs, applications/statuses, health, and deletion placeholder routes. Production work should add Mongoose schemas for User, Job (including trust metadata), Application, CandidateProfile, ResumeAnalysis (evidence states), Insight, and an authenticated retention/export service before connecting MongoDB. Data shown is not verified employer data.
+"# ISTE-Version-Beta---13" 
