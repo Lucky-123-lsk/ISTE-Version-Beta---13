@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CareerPilot AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#142B4A;--blue:#2563EB;--tx:#172033;--tx2:#64748B;--bg:#fff;--bg2:#F5F7FA;--lb:#E8F1FF;--card:#fff;--bd:#E5E7EB;--bd2:#DCE2EA;--ok:#15803D;--okb:#DCFCE7;--wn:#B45309;--wnb:#FEF3C7;--er:#B91C1C;--erb:#FEE2E2;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--navy:#0B1830;--blue:#5B8DF6;--tx:#E6EBF3;--tx2:#9AA7BA;--bg:#0F1624;--bg2:#141C2D;--lb:#18284A;--card:#141C2D;--bd:#243049;--bd2:#2E3D5C;--ok:#4ADE80;--okb:#12301F;--wn:#FBBF24;--wnb:#3A2C0C;--er:#F87171;--erb:#3A1414}}
+:root[data-theme="dark"]{color-scheme:dark;--navy:#0B1830;--blue:#5B8DF6;--tx:#E6EBF3;--tx2:#9AA7BA;--bg:#0F1624;--bg2:#141C2D;--lb:#18284A;--card:#141C2D;--bd:#243049;--bd2:#2E3D5C;--ok:#4ADE80;--okb:#12301F;--wn:#FBBF24;--wnb:#3A2C0C;--er:#F87171;--erb:#3A1414}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 Inter,"Segoe UI",system-ui,sans-serif}
+button,input,select{font:inherit;color:inherit}a{color:var(--blue);text-decoration:none}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+h1,h2,h3{margin:0;line-height:1.2;font-weight:600}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--bd2);background:var(--card);border-radius:6px;padding:9px 16px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--bg2)}.btn.p{background:var(--blue);border-color:var(--blue);color:#fff}.btn.p:hover{filter:brightness(.92)}.btn.sm{padding:5px 10px;font-size:13px}
+.btn.d{color:var(--er)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:20px}
+.muted{color:var(--tx2)}.sm{font-size:13px}
+.badge{display:inline-block;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:500;background:var(--lb);color:var(--blue)}
+.b-ok{background:var(--okb);color:var(--ok)}.b-wn{background:var(--wnb);color:var(--wn)}.b-er{background:var(--erb);color:var(--er)}.b-gy{background:var(--bg2);color:var(--tx2);border:1px solid var(--bd)}
+input,select{border:1px solid var(--bd2);background:var(--bg);border-radius:6px;padding:9px 12px;min-height:40px}
+/* public */
+.nav{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--bd);padding-top:env(safe-area-inset-top,0px)}
+.nav .wrap{display:flex;align-items:center;height:68px;gap:28px}
+.logo{font-weight:600;font-size:18px;color:var(--navy);display:flex;gap:8px;align-items:center}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .logo{color:var(--tx)}}
+.logo i{width:24px;height:24px;border-radius:6px;background:var(--blue);display:inline-block;clip-path:polygon(0 100%,50% 0,100% 100%,50% 70%)}
+.nav a.l{color:var(--tx);font-weight:500}.nav a.l:hover{color:var(--blue)}.sp{flex:1}
+.hero{background:var(--navy);color:#fff;padding:72px 0 64px}
+.hero h1{font-size:clamp(34px,5vw,54px);max-width:760px;letter-spacing:-.02em}
+.hero p{max-width:600px;color:#C5D3E8;font-size:17px;margin:16px 0 28px}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.btn.ghost{border-color:#6D86A8;background:transparent;color:#fff}.btn.ghost:hover{background:#203D63}
+.sbox{display:flex;gap:8px;flex-wrap:wrap;background:var(--card);padding:10px;border-radius:8px;max-width:820px}
+.sbox input{flex:1 1 200px;border:0;background:transparent;color:var(--tx)}
+.sec{padding:64px 0}.sec.g{background:var(--bg2)}
+.sec h2{font-size:30px;margin-bottom:8px}.sec>.wrap>p{max-width:620px;margin:0 0 32px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.split{display:grid;gap:48px;grid-template-columns:1fr 1fr;align-items:center}
+@media(max-width:800px){.split{grid-template-columns:1fr}}
+.steps{counter-reset:s;display:grid;gap:0}
+.steps div{counter-increment:s;padding:18px 0 18px 48px;border-top:1px solid var(--bd);position:relative}
+.steps div:before{content:counter(s);position:absolute;left:0;top:18px;width:30px;height:30px;border-radius:50%;background:var(--lb);color:var(--blue);display:grid;place-items:center;font-weight:600;font-size:14px}
+footer{background:var(--navy);color:#C5D3E8;padding:40px 0;font-size:14px}
+/* app */
+.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh;background:var(--bg2)}
+.app.c{grid-template-columns:64px 1fr}
+.side{background:var(--card);border-right:1px solid var(--bd);padding:16px 10px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.side .logo{padding:0 8px 16px}.side h4{margin:18px 8px 6px;font-size:12px;font-weight:600;color:var(--tx2)}
+.side a{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:6px;color:var(--tx);font-size:14px}
+.side a:hover{background:var(--bg2)}.side a.on{background:var(--lb);color:var(--blue);font-weight:500}
+.side a b{width:18px;text-align:center;font-weight:400}
+.app.c .side span,.app.c .side h4,.app.c .logo span{display:none}
+.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:10}
+.main{padding:24px;max-width:1200px}
+.ph{margin-bottom:20px}.ph h1{font-size:28px}.crumb{font-size:13px;color:var(--tx2);margin-bottom:4px}
+.menu{position:relative}.pop{position:absolute;right:0;top:44px;background:var(--card);border:1px solid var(--bd2);border-radius:8px;min-width:200px;padding:6px;z-index:30;animation:in .12s ease}
+.pop a,.pop button{display:block;width:100%;text-align:left;padding:8px 10px;border:0;background:none;border-radius:6px;cursor:pointer;color:var(--tx)}.pop a:hover,.pop button:hover{background:var(--bg2)}
+@keyframes in{from{opacity:0;transform:translateY(-4px)}}
+.metrics{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px}
+.metrics .n{font-size:28px;font-weight:600}
+.lay{display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start}
+.job{display:flex;gap:16px;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
+.job h3{font-size:17px}.tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.match{min-width:90px;text-align:right}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--bd);font-size:14px}th{font-weight:500;color:var(--tx2);font-size:13px}
+.scroll{overflow-x:auto}
+.bar{height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;border:1px solid var(--bd)}.bar i{display:block;height:100%;background:var(--blue)}
+.drawer{position:fixed;inset:0 0 0 auto;width:min(480px,100%);background:var(--card);border-left:1px solid var(--bd2);z-index:50;padding:24px;overflow-y:auto;animation:sl .18s ease}
+@keyframes sl{from{transform:translateX(20px);opacity:0}}
+.scrim{position:fixed;inset:0;background:rgba(10,20,40,.45);z-index:40}
+.demo{background:var(--wnb);color:var(--wn);padding:6px 24px;font-size:13px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 18px;border-radius:6px;z-index:60}
+.ev{border-left:3px solid var(--bd2);padding:8px 12px;margin:8px 0;background:var(--bg2);border-radius:0 6px 6px 0;font-size:13px}
+.ev.ok{border-color:var(--ok)}.ev.wn{border-color:var(--wn)}.ev.er{border-color:var(--er)}
+#mb{display:none}
+@media(max-width:860px){.app,.app.c{grid-template-columns:1fr}.side{position:fixed;left:0;top:0;z-index:45;width:260px;transform:translateX(-100%);transition:transform .2s}.app.o .side{transform:none}.app.c .side span,.app.c .side h4,.app.c .logo span{display:inline}#mb{display:inline-flex}#cb{display:none}.lay{grid-template-columns:1fr}.main{padding:16px}.nav .wrap .l{display:none}}
+@media(max-width:560px){.wrap{padding:0 16px}.nav .wrap{height:60px;gap:16px}.nav .logo{font-size:16px}.nav .btn.p{padding:7px 10px}.hero{padding:52px 0 48px}.hero h1{font-size:36px}.hero p{font-size:16px}.hero-actions .btn{width:100%;justify-content:center}.sbox{padding:8px}.sbox input,.sbox .btn{width:100%;flex-basis:100%}.sec{padding:48px 0}.sec h2{font-size:26px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body><div id="root"></div>
+<script>
+const JOBS=[
+{id:1,t:"Frontend Engineer",c:"Northwind Labs",l:"Bengaluru",ty:"Full-time",sal:"₹14–20 LPA",sk:["React","JavaScript","Tailwind"],m:86,tr:"verified",ef:"~25 min",d:"Build accessible interfaces for a logistics analytics product used by operations teams.",resp:["Ship features in a React codebase","Review designs with product","Write component tests"],dl:"20 Nov 2026"},
+{id:2,t:"Software Development Intern",c:"Contoso Systems",l:"Remote",ty:"Internship",sal:"₹30,000/month",sk:["Python","REST APIs","Git"],m:74,tr:"verified",ef:"~15 min",d:"Work with a backend team on internal tooling and API integrations.",resp:["Fix backend tickets","Write API documentation","Join weekly code reviews"],dl:"15 Nov 2026"},
+{id:3,t:"Mobile App Developer",c:"Fabrikam Health",l:"Indore",ty:"Full-time",sal:"Not listed",sk:["Flutter","Dart","Firebase"],m:81,tr:"unverified",ef:"~35 min",d:"Own the patient-facing Flutter app from build to release.",resp:["Build Flutter screens","Integrate Firebase","Maintain release pipeline"],dl:"30 Nov 2026"},
+{id:4,t:"Data Analyst",c:"Tailspin Retail",l:"Pune",ty:"Full-time",sal:"₹8–12 LPA",sk:["SQL","Python","Dashboards"],m:52,tr:"caution",ef:"~40 min",d:"Report on store performance and run weekly experiments.",resp:["Write SQL","Build dashboards","Present findings"],dl:"10 Dec 2026"},
+{id:5,t:"Security Analyst Trainee",c:"Adatum Cyber",l:"Hyderabad",ty:"Full-time",sal:"₹6–9 LPA",sk:["Networking","Python","Linux"],m:63,tr:"verified",ef:"~30 min",d:"Monitor alerts and document incident response steps.",resp:["Triage alerts","Write runbooks","Assist investigations"],dl:"25 Nov 2026"}];
+const TR={verified:["Source verified","b-ok"],unverified:["Not yet verified","b-gy"],caution:["Check before applying","b-wn"]};
+const ST=["Saved","Planned","Applied","Assessment","Interview","Rejected","Offer","Withdrawn"];
+const SB={Saved:"b-gy",Planned:"",Applied:"",Assessment:"b-wn",Interview:"b-wn",Rejected:"b-er",Offer:"b-ok",Withdrawn:"b-gy"};
+let S={saved:new Set([1]),apps:[{j:2,s:"Applied",d:"28 Oct"},{j:1,s:"Interview",d:"22 Oct"},{j:5,s:"Planned",d:"30 Oct"},{j:4,s:"Rejected",d:"12 Oct"}],q:"",loc:"",ty:"",sort:"match",min:0,col:false,open:false,menu:false,drawer:null,toast:"",confirm:null,rtab:"supported"};
+const $=id=>document.getElementById(id);const job=id=>JOBS.find(j=>j.id==id);
+const route=()=>(location.hash||"#home").slice(1);
+const badge=(t,c="")=>`<span class="badge ${c}">${t}</span>`;
+const toast=m=>{S.toast=m;render();setTimeout(()=>{S.toast="";render()},1800)};
+function filtered(){let r=JOBS.filter(j=>(j.t+j.c+j.sk.join()).toLowerCase().includes(S.q.toLowerCase())&&(!S.loc||j.l.toLowerCase().includes(S.loc.toLowerCase()))&&(!S.ty||j.ty==S.ty)&&j.m>=S.min);
+return r.sort((a,b)=>S.sort=="match"?b.m-a.m:a.t.localeCompare(b.t))}
+function card(j){return `<div class="card job"><div style="flex:1;min-width:220px"><h3>${j.t}</h3><div class="muted sm">${j.c} · ${j.l} · ${j.ty} · ${j.sal}</div>
+<div class="tags">${j.sk.map(s=>badge(s,"b-gy")).join("")}${badge(TR[j.tr][0],TR[j.tr][1])}</div><div class="muted sm">Application effort ${j.ef}</div></div>
+<div class="match"><div style="font-size:22px;font-weight:600">${j.m}%</div><div class="muted sm">skill match</div><div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end">
+<button class="btn sm" data-save="${j.id}" aria-pressed="${S.saved.has(j.id)}">${S.saved.has(j.id)?"Saved":"Save"}</button><button class="btn sm p" data-view="${j.id}">View details</button></div></div></div>`}
+function pub(){return `<header class="nav"><div class="wrap"><a class="logo" href="#home"><i></i>CareerPilot AI</a>
+<a class="l" href="#home">Home</a><a class="l" href="#discover">Explore Jobs</a><a class="l" href="#paths">Career Paths</a><a class="l" href="#about">About CareerPilot</a><span class="sp"></span>
+<a class="l" href="#overview">Sign in</a><a class="btn p" href="#overview">Get started</a></div></header>
+<section class="hero"><div class="wrap"><h1>Find roles you can actually win, and keep every application in one place.</h1>
+<p>CareerPilot matches jobs to evidence in your resume, shows how much to trust each posting, and tracks where every application stands.</p>
+<div class="sbox"><input id="hq" aria-label="Job title or skill" placeholder="Job title or skill"><input id="hl" aria-label="Location" placeholder="Location"><button class="btn p" id="hs">Explore opportunities</button></div>
+<div class="hero-actions"><a class="btn ghost" href="#overview">Get started with your profile</a><a class="btn ghost" href="#paths">Explore career paths</a></div>
+<p style="margin:16px 0 0;font-size:14px">New here? <a href="#overview" style="color:#fff;text-decoration:underline">Get started</a> to build your profile.</p></div></section>
+<section class="sec"><div class="wrap"><h2>Featured opportunities</h2><p class="muted">Sample listings for this prototype. They are demo data, not real postings.</p>
+<div class="grid">${JOBS.slice(0,3).map(j=>`<div class="card"><h3>${j.t}</h3><div class="muted sm">${j.c} · ${j.l}</div><div class="tags">${j.sk.map(s=>badge(s,"b-gy")).join("")}</div><button class="btn sm" data-view="${j.id}">View details</button></div>`).join("")}</div></div></section>
+<section class="sec g"><div class="wrap"><h2>Explore career paths</h2><p class="muted">Start with a direction, then use evidence from your profile to decide which opportunities are worth your time.</p>
+<div class="grid"><a class="card" href="#discover"><h3>Product &amp; engineering</h3><p class="muted sm">Frontend, backend, mobile, and platform roles.</p><span class="sm">View matching roles →</span></a><a class="card" href="#discover"><h3>Data &amp; analytics</h3><p class="muted sm">Turn business questions into measurable decisions.</p><span class="sm">View matching roles →</span></a><a class="card" href="#discover"><h3>Security &amp; infrastructure</h3><p class="muted sm">Build reliable systems and protect the people who use them.</p><span class="sm">View matching roles →</span></a></div></div></section>
+<section class="sec g"><div class="wrap split"><div><h2>How CareerPilot works</h2><div class="steps"><div><b>Add your resume and profile</b><br><span class="muted">We read your skills and projects and keep the source for each one.</span></div><div><b>Review matched jobs</b><br><span class="muted">Every match explains which requirements you meet and which you don’t.</span></div><div><b>Apply and track</b><br><span class="muted">Move each application through its stages and see what to do next.</span></div></div></div>
+<div class="card"><h3>Career intelligence you can check</h3><p class="muted">Each suggestion points to the line in your resume that supports it. If nothing supports it, it’s marked as unconfirmed, never as fact.</p><div class="ev ok">Supported by resume: “Built a Flutter app with Firebase auth”</div><div class="ev wn">Requires confirmation: Team lead experience</div><div class="ev er">Insufficient evidence: AWS certification</div></div></div></section>
+<section class="sec"><div class="wrap"><h2>Useful signals, not false certainty</h2><p class="muted">CareerPilot keeps the reasoning visible so you can make the final decision.</p><div class="grid"><div class="card"><h3>Evidence-linked matching</h3><p class="muted sm">See which resume skills support a match and which requirements still need your review.</p></div><div class="card"><h3>Posting trust signals</h3><p class="muted sm">Understand source status before investing time in an application.</p></div><div class="card"><h3>Honest career insights</h3><p class="muted sm">Small samples are labelled clearly instead of being presented as conclusions.</p></div></div></div></section>
+<section class="sec"><div class="wrap"><h2>Built for trust</h2><p class="muted">Postings carry a source status. Insights show sample sizes. Nothing is presented as more certain than the data allows.</p>
+<div class="grid"><div class="card"><h3>Verification status</h3><p class="muted sm">See where a posting came from before you spend time on it.</p></div><div class="card"><h3>Evidence-linked resume edits</h3><p class="muted sm">Suggestions cite your own words.</p></div><div class="card"><h3>Honest analytics</h3><p class="muted sm">Small samples are labelled as such.</p></div></div></div></section>
+<section class="sec g"><div class="wrap"><h2>Ready to plan your next application?</h2><p class="muted">Create a profile in a few minutes.</p><a class="btn p" href="#overview">Get started</a></div></section>
+<footer><div class="wrap">© 2026 CareerPilot AI. Prototype with demo data. Not affiliated with any employer.</div></footer>`}
+const NAV=[["Workspace",[["overview","Overview","▦"],["discover","Discover Jobs","⌕"],["saved","Saved Jobs","★"]]],["Applications",[["applications","My Applications","☰"],["planner","Application Planner","▤"]]],["Career Intelligence",[["match","Smart Match","◎"],["resume","Resume Studio","✎"],["insights","Career Insights","▲"],["gaps","Skill Gap Analysis","△"]]],["Preparation",[["interview","Interview Preparation","?"]]],["Account",[["profile","My Profile","●"],["settings","Settings","⚙"],["privacy","Privacy & Data","🔒"]]]];
+const TITLES={};NAV.forEach(g=>g[1].forEach(i=>TITLES[i[0]]=i[1]));
+function appShell(r,body){return `<div class="app ${S.col?"c":""} ${S.open?"o":""}"><nav class="side" aria-label="Main"><a class="logo" href="#home"><i></i><span>CareerPilot AI</span></a>
+${NAV.map(g=>`<h4>${g[0]}</h4>`+g[1].map(i=>`<a href="#${i[0]}" class="${r==i[0]?"on":""}" title="${i[1]}" ${r==i[0]?'aria-current="page"':""}><b>${i[2]}</b><span>${i[1]}</span></a>`).join("")).join("")}</nav>
+<div>${S.open?'<div class="scrim" id="scrim" style="z-index:44"></div>':""}<div class="demo">Demo data. Nothing here is verified or from a real employer.</div>
+<header class="top"><button class="btn sm" id="mb" aria-label="Open navigation">Menu</button><button class="btn sm" id="cb" aria-label="Collapse sidebar">${S.col?"Expand":"Collapse"}</button><span class="sp" style="flex:1"></span>
+<div class="menu"><button class="btn sm" id="nt" aria-label="Notifications">Notifications 2</button></div>
+<div class="menu"><button class="btn sm" id="pm" aria-haspopup="true" aria-expanded="${S.menu}">Singh</button>${S.menu?`<div class="pop" role="menu"><a href="#profile">My profile</a><a href="#settings">Settings</a><a href="#home">Back to website</a><button id="th">Switch light/dark</button><button class="d" id="out" style="color:var(--er)">Sign out</button></div>`:""}</div></header>
+<main class="main"><div class="crumb">Workspace / ${TITLES[r]||""}</div><div class="ph"><h1>${TITLES[r]||""}</h1></div>${body}</main></div></div>`}
+function overview(){const a=S.apps;const n=s=>a.filter(x=>x.s==s).length;
+return `<p class="muted" style="margin-top:-12px">Welcome back. You have 1 interview coming up.</p><div class="metrics">${[["Applications",a.length],["Interviews",n("Interview")],["Pending",n("Applied")+n("Planned")],["Saved jobs",S.saved.size]].map(m=>`<div class="card"><div class="muted sm">${m[0]}</div><div class="n">${m[1]}</div></div>`).join("")}</div>
+<div class="grid" style="grid-template-columns:2fr 1fr"><div class="card"><h3>Recommended for you</h3>${JOBS.slice(0,3).map(j=>`<div style="display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--bd)"><div>${j.t}<div class="muted sm">${j.c}</div></div><button class="btn sm" data-view="${j.id}">View details</button></div>`).join("")}</div>
+<div class="card"><h3>Profile completion</h3><div class="bar" style="margin:12px 0"><i style="width:70%"></i></div><p class="muted sm">70%. Add a project to improve your matches.</p><a class="btn sm" href="#profile">Edit profile</a></div></div>
+<div class="card" style="margin-top:16px"><h3>Recent updates</h3>${a.map(x=>`<div style="padding:8px 0;border-top:1px solid var(--bd)">${job(x.j).t} at ${job(x.j).c} ${badge(x.s,SB[x.s])} <span class="muted sm">${x.d}</span></div>`).join("")}</div>`}
+function discover(saved){let r=saved?JOBS.filter(j=>S.saved.has(j.id)):filtered();
+const f=saved?"":`<aside class="card" aria-label="Filters"><h3 style="font-size:16px;margin-bottom:12px">Filters</h3><label class="sm muted">Employment type</label><select id="fty" style="width:100%;margin:4px 0 12px"><option value="">All</option><option ${S.ty=="Full-time"?"selected":""}>Full-time</option><option ${S.ty=="Internship"?"selected":""}>Internship</option></select>
+<label class="sm muted">Minimum match: ${S.min}%</label><input id="fmin" type="range" min="0" max="90" step="10" value="${S.min}" style="width:100%;padding:0"><button class="btn sm" id="fclr" style="margin-top:12px">Clear filters</button></aside>`;
+return `${saved?"":`<div class="card" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"><input id="q" aria-label="Search" placeholder="Title, company or skill" value="${S.q}" style="flex:2 1 200px"><input id="loc" aria-label="Location" placeholder="Location" value="${S.loc}" style="flex:1 1 140px"><select id="so" aria-label="Sort"><option value="match">Best match</option><option value="title" ${S.sort=="title"?"selected":""}>Title A–Z</option></select></div>`}
+<div class="lay" style="${saved?"grid-template-columns:1fr":""}">${f}<div><div class="muted sm" style="margin-bottom:10px">${r.length} result${r.length==1?"":"s"}</div>${r.length?r.map(card).join(""):`<div class="card" style="text-align:center"><h3>${saved?"No saved jobs yet":"No jobs match these filters"}</h3><p class="muted">${saved?"Save a job from Discover Jobs to find it here.":"Try a broader search or clear the filters."}</p><a class="btn" href="#discover">Discover jobs</a></div>`}</div></div>`}
+function apps(){return `<div class="card scroll"><table><thead><tr><th>Role</th><th>Company</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>${S.apps.map((x,i)=>`<tr><td>${job(x.j).t}</td><td>${job(x.j).c}</td><td><select data-st="${i}" aria-label="Status for ${job(x.j).t}">${ST.map(s=>`<option ${s==x.s?"selected":""}>${s}</option>`).join("")}</select></td><td class="muted">${x.d}</td><td><button class="btn sm d" data-del="${i}">Remove</button></td></tr>`).join("")}</tbody></table>${S.apps.length?"":`<div style="text-align:center;padding:24px"><h3>No applications yet</h3><p class="muted">Save a job and mark it as planned.</p></div>`}</div>`}
+function priority(j){const trust=j.tr=="verified"?90:j.tr=="caution"?55:70;const effort=parseInt(j.ef)||30;return Math.round(j.m*.3+80*.25+trust*.2+Math.max(0,100-effort*2)*.15+70*.1)}
+function planner(){return `<p class="muted" style="margin-top:-12px">A transparent weekly plan for your available application time. Recommendations are suggestions you can override.</p>
+<div class="metrics">${[["Weekly time budget","5 hrs"],["Planned roles",S.apps.filter(x=>x.s=="Planned").length],["Apply now",JOBS.filter(j=>priority(j)>=75&&j.tr!="caution").length]].map(m=>`<div class="card"><div class="muted sm">${m[0]}</div><div class="n">${m[1]}</div></div>`).join("")}</div>
+<div class="card"><h3>Recommended order</h3><p class="muted sm">Priority combines skill match, career alignment, eligibility, listing quality, and estimated effort. It is an initial design assumption, not a guarantee.</p>${[...JOBS].sort((a,b)=>priority(b)-priority(a)).map(j=>`<div class="job" style="padding:12px 0;border-top:1px solid var(--bd)"><div><b>${j.t}</b><div class="muted sm">${j.c} · ${j.ef} · ${TR[j.tr][0]}</div></div><div class="match"><b>${priority(j)}</b><div class="muted sm">${priority(j)>=75&&j.tr!="caution"?"Apply now":j.tr=="caution"?"Review first":"Consider later"}</div></div></div>`).join("")}</div>
+<div class="card" style="margin-top:16px"><h3>Time trade-off</h3><p class="muted sm">A higher match is not the only signal. Compare application effort and trust before deciding where your time goes.</p><div class="ev ok">A 30-minute application with an 85% match may be more efficient than a 3-hour application with a 90% match.</div></div>`}
+function match(){return `<p class="muted" style="margin-top:-12px">Your profile is more than your current resume. These paths combine existing skills, transferable skills, interests, and gaps.</p><div class="grid">
+<div class="card"><h3>Bridge opportunities</h3><p class="muted sm">Use existing web skills while moving toward AI.</p><div class="tags">${["AI application developer","Full-stack AI developer","GenAI intern"].map(x=>badge(x,"b-gy")).join("")}</div><span class="badge b-ok">Strong transition fit</span></div>
+<div class="card"><h3>Transition opportunities</h3><p class="muted sm">Build the foundations for a new domain.</p><div class="tags">${["Python developer","Junior ML intern","Data science intern"].map(x=>badge(x,"b-gy")).join("")}</div><span class="badge b-wn">Preparation recommended</span></div>
+<div class="card"><h3>Stretch opportunities</h3><p class="muted sm">Ambitious roles with meaningful preparation gaps.</p><div class="tags">${["Deep learning research","Advanced NLP","Computer vision"].map(x=>badge(x,"b-gy")).join("")}</div><span class="badge b-gy">Review requirements</span></div></div>
+<div class="card" style="margin-top:16px"><h3>How recommendations are explained</h3><p class="muted sm">Initial weighting: existing skills 30%, transferable skills 25%, interests 20%, eligibility 15%, preferences 10%. Missing skills do not automatically disqualify you.</p><div class="ev ok">Verified: React, JavaScript, Git appear in the sample profile.</div><div class="ev wn">Learning: Python is a current transition goal.</div><div class="ev er">Gap: No evidence currently supports TensorFlow or PyTorch.</div></div>`}
+function gaps(){return `<p class="muted" style="margin-top:-12px">Compare your current evidence with target roles and choose what to learn next. Recommendations are based on demo job requirements.</p><div class="card"><h3>Prioritized skill gaps</h3>${[["Python","Build two API or data projects","High"],["Machine learning fundamentals","Complete a small supervised-learning project","Medium"],["TensorFlow / PyTorch","Review after Python foundations","Later"]].map(x=>`<div class="job" style="padding:14px 0;border-top:1px solid var(--bd)"><div><b>${x[0]}</b><div class="muted sm">${x[1]}</div></div>${badge(x[2],x[2]=="High"?"b-wn":"b-gy")}</div>`).join("")}</div>`}
+function interview(){return `<div class="card"><h3>Role-specific interview preparation</h3><p class="muted">Choose a role to prepare questions from its responsibilities and your confirmed projects. No answer is generated as a claim about your experience.</p><div class="grid"><div class="card"><h3>Frontend Engineer</h3><p class="muted sm">React, accessibility, API integration</p><button class="btn sm p" data-notice>Prepare questions</button></div><div class="card"><h3>Software Development Intern</h3><p class="muted sm">Python, REST APIs, collaboration</p><button class="btn sm p" data-notice>Prepare questions</button></div></div></div>`}
+function profile(){return `<div class="grid"><div class="card"><h3>Existing skills</h3><p class="muted sm">React, JavaScript, Flutter, Python, Git</p></div><div class="card"><h3>Career interests</h3><p class="muted sm">Web development and AI/ML applications</p></div><div class="card"><h3>Transferable skills</h3><p class="muted sm">Project delivery, APIs, documentation</p></div><div class="card"><h3>Skill gaps</h3><p class="muted sm">Python depth, ML fundamentals, TensorFlow/PyTorch</p></div></div><div class="card" style="margin-top:16px"><h3>Profile completeness</h3><div class="bar" style="margin:12px 0"><i style="width:70%"></i></div><p class="muted sm">Add education, preferred locations, and confirmed projects to improve explanations.</p><button class="btn p" data-notice>Edit profile</button></div>`}
+function privacy(){return `<div class="card"><h3>Privacy &amp; data</h3><p class="muted">You control the information used for matching and application tracking.</p><div class="ev ok"><b>Stored:</b> profile, resume evidence, saved jobs, and application history.</div><div class="ev wn"><b>Purpose:</b> matching, evidence references, status tracking, and insights.</div><div class="ev"><b>Retention:</b> demo policy — review or delete your data from this workspace at any time.</div><button class="btn d" data-notice>Request data deletion</button></div>`}
+function settings(){return `<div class="card"><h3>Settings</h3><p class="muted">Manage how CareerPilot communicates recommendations.</p><label style="display:block;margin:12px 0"><input type="checkbox" checked> Show uncertain listings instead of hiding them</label><label style="display:block;margin:12px 0"><input type="checkbox" checked> Ask before changing application status</label><label style="display:block;margin:12px 0"><input type="checkbox"> Include stretch opportunities in recommendations</label></div>`}
+function resume(){const T={supported:[["ok","Supported by resume","“Built TrainFit, a Flutter fitness app” supports the Flutter requirement."],["ok","Supported by resume","“Python scripts for GitHub analytics” supports Python."]],confirm:[["wn","Requires confirmation","Team leadership: your resume mentions a team of 4 but not your role."]],gaps:[["er","Insufficient evidence","AWS experience: nothing in your resume supports this. Add it only if true."]]};
+return `<div class="lay" style="grid-template-columns:1fr 1fr"><div class="card"><h3>Resume preview</h3><p class="muted sm">Sample resume, page 1 of 1</p><div class="ev ok">Projects: Flutter fitness app with Firebase</div><div class="ev ok">Skills: Python, JavaScript, Git</div><div class="ev wn">Experience: Hackathon team (4 members)</div></div>
+<div class="card"><div style="display:flex;gap:6px;margin-bottom:12px" role="tablist">${[["supported","Supported"],["confirm","Confirm"],["gaps","Gaps"]].map(t=>`<button role="tab" class="btn sm ${S.rtab==t[0]?"p":""}" data-rt="${t[0]}" aria-selected="${S.rtab==t[0]}">${t[1]}</button>`).join("")}</div>${T[S.rtab].map(e=>`<div class="ev ${e[0]}"><b>${e[1]}</b><br>${e[2]}</div>`).join("")}</div></div>`}
+function insights(){const a=S.apps.length;return `<div class="metrics">${[["Applications",a],["Interviews",S.apps.filter(x=>x.s=="Interview").length],["Rejections",S.apps.filter(x=>x.s=="Rejected").length]].map(m=>`<div class="card"><div class="muted sm">${m[0]}</div><div class="n">${m[1]}</div></div>`).join("")}</div>
+<div class="card"><h3>Applications by stage</h3><p class="muted sm">Based on ${a} applications. This is too few to draw conclusions about what works.</p>${ST.map(s=>{const c=S.apps.filter(x=>x.s==s).length;return `<div style="display:flex;gap:12px;align-items:center;margin:6px 0"><span style="width:90px" class="sm">${s}</span><div class="bar" style="flex:1"><i style="width:${a?c/a*100:0}%"></i></div><span class="sm muted">${c}</span></div>`}).join("")}<p class="sm" style="margin-top:12px">${badge("Low confidence","b-wn")} Suggested next step: apply to 5 or more roles before comparing categories.</p></div>`}
+function page(r){return r=="overview"?overview():r=="discover"?discover():r=="saved"?discover(true):r=="applications"?apps():r=="planner"?planner():r=="match"?match():r=="resume"?resume():r=="insights"?insights():r=="gaps"?gaps():r=="interview"?interview():r=="profile"?profile():r=="privacy"?privacy():r=="settings"?settings():`<div class="card" style="text-align:center;padding:48px"><h3>${TITLES[r]} isn’t built in this prototype</h3><p class="muted">This area is planned for a future iteration.</p><a class="btn" href="#overview">Go to Overview</a></div>`}
+function drawer(){const j=job(S.drawer);if(!j)return"";const sv=S.saved.has(j.id);return `<div class="scrim" id="dx"></div><aside class="drawer" role="dialog" aria-label="${j.t}"><button class="btn sm" id="dc" style="float:right">Close</button><h2 style="font-size:24px">${j.t}</h2><p class="muted">${j.c} · ${j.l} · ${j.ty} · ${j.sal}</p>
+<div class="tags">${badge(TR[j.tr][0],TR[j.tr][1])}${badge("Deadline "+j.dl,"b-gy")}</div><p>${j.d}</p><h3 style="font-size:16px">Responsibilities</h3><ul>${j.resp.map(x=>`<li>${x}</li>`).join("")}</ul>
+<h3 style="font-size:16px">Skill match: ${j.m}%</h3><div class="bar" style="margin:8px 0"><i style="width:${j.m}%"></i></div><p class="muted sm">Required: ${j.sk.join(", ")}. Match is based on your sample profile. Application effort ${j.ef}.</p>
+<div class="ev ${j.tr=="verified"?"ok":"wn"}"><b>Source status:</b> ${TR[j.tr][0]}. Checked signals: source, deadline, company information, and listing consistency. This is demo data; uncertainty is not proof of fraud.</div>
+<div class="ev"><b>Human approval required:</b> planning a role never submits an application. You review and approve any final application yourself.</div>
+<div style="display:flex;gap:8px;margin-top:16px"><button class="btn p" data-plan="${j.id}">Plan application</button><button class="btn" data-save="${j.id}">${sv?"Remove from saved":"Save job"}</button></div></aside>`}
+function render(){const r=route();const pubr=["home","paths","about"].includes(r);const a=document.activeElement&&document.activeElement.id;const v=a&&$(a)?.value;
+$("root").innerHTML=(pubr?pub():appShell(r,page(r)))+drawer()+(S.confirm?`<div class="scrim"></div><div class="drawer" style="top:30%;bottom:auto;inset-inline:auto;left:50%;right:auto;transform:translateX(-50%);width:min(380px,92%);border:1px solid var(--bd2);border-radius:8px" role="alertdialog"><h3>${S.confirm.m}</h3><p class="muted">This can’t be undone.</p><button class="btn d" id="cy">Remove</button> <button class="btn" id="cn">Cancel</button></div>`:"")+(S.toast?`<div class="toast" role="status">${S.toast}</div>`:"");
+if(a&&$(a)&&["q","loc"].includes(a)){const e=$(a);e.focus();e.setSelectionRange(v.length,v.length)}}
+document.addEventListener("click",e=>{const t=e.target.closest("[data-save],[data-view],[data-plan],[data-del],[data-rt],[data-notice],#mb,#cb,#pm,#scrim,#dx,#dc,#fclr,#th,#out,#nt,#cy,#cn,#hs");if(!t){if(S.menu){S.menu=false;render()}return}
+const d=t.dataset;if(d.save){const i=+d.save;S.saved.has(i)?S.saved.delete(i):S.saved.add(i);toast(S.saved.has(i)?"Job saved":"Removed from saved")}
+else if(d.view){S.drawer=+d.view;render()}else if(d.plan){const i=+d.plan;if(!S.apps.find(x=>x.j==i))S.apps.push({j:i,s:"Planned",d:"Today"});S.drawer=null;toast("Added to My Applications")}
+else if(d.del){S.confirm={m:"Remove this application?",i:+d.del};render()}else if(d.rt){S.rtab=d.rt;render()}
+else if(t.id=="mb"||t.id=="scrim"){S.open=!S.open;render()}else if(t.id=="cb"){S.col=!S.col;render()}else if(t.id=="pm"){e.stopPropagation();S.menu=!S.menu;render()}
+else if(t.id=="dx"||t.id=="dc"){S.drawer=null;render()}else if(t.id=="fclr"){S.q=S.loc=S.ty="";S.min=0;render()}
+else if(t.id=="th"){const h=document.documentElement;const dk=h.dataset.theme?h.dataset.theme=="dark":matchMedia("(prefers-color-scheme:dark)").matches;h.dataset.theme=dk?"light":"dark";S.menu=false;render()}
+else if(t.id=="out"){S.menu=false;location.hash="home"}else if(t.id=="nt"||t.dataset.notice!=null){toast(t.dataset.notice!=null?"This prototype action is ready for backend integration":"2 updates: interview on 3 Nov, status change")}
+else if(t.id=="cy"){S.apps.splice(S.confirm.i,1);S.confirm=null;toast("Application removed")}else if(t.id=="cn"){S.confirm=null;render()}
+else if(t.id=="hs"){S.q=$("hq").value;S.loc=$("hl").value;location.hash="discover"}});
+document.addEventListener("input",e=>{const i=e.target.id;if(i=="q"){S.q=e.target.value;render()}else if(i=="loc"){S.loc=e.target.value;render()}else if(i=="fmin"){S.min=+e.target.value;render()}});
+document.addEventListener("change",e=>{const t=e.target;if(t.id=="so"){S.sort=t.value;render()}else if(t.id=="fty"){S.ty=t.value;render()}else if(t.dataset.st!=null){S.apps[+t.dataset.st].s=t.value;toast("Status updated to "+t.value)}});
+addEventListener("hashchange",()=>{S.open=false;S.menu=false;render();scrollTo(0,0)});render();
+</script></body></html>
