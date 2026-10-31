@@ -16,6 +16,11 @@
   --font: "Segoe UI", Inter, Arial, sans-serif;
 }
 
+.auth-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--surface); }
+.auth-card { width: min(460px, 100%); display: grid; gap: 16px; }
+.auth-card form { display: grid; gap: 14px; }
+.auth-card label { display: grid; gap: 6px; }
+
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; font-family: var(--font); }
 body {
