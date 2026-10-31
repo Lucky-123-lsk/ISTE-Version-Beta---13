@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>CareerPilot</title><style>body{font:14px system-ui;width:300px;padding:14px}button,input{width:100%;padding:8px;margin-top:8px;box-sizing:border-box}#status{margin-top:10px}</style></head>
+  <body>
+    <strong>CareerPilot Assisted Applications</strong>
+    <p>Paste a scoped extension token from your CareerPilot account. The main website JWT is never used in page scripts.</p>
+    <input id="token" type="password" placeholder="Scoped extension token">
+    <button id="save">Connect extension</button>
+    <button id="fill">Fill supported fields</button>
+    <div id="status"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>
