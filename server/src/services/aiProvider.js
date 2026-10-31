@@ -209,6 +209,7 @@ export async function analyzeResume({ resumeText, jobDescription }) {
     error.statusCode = 503;
     throw error;
   }
+
   const prompt = [
     'Analyze the supplied resume text against the job description.',
     'Return exactly one JSON object with a "requirements" array. Each array item must have requirement, claim, evidenceQuote, recommendation, confidence.',
@@ -241,4 +242,98 @@ export async function analyzeResume({ resumeText, jobDescription }) {
     evidencePolicy: 'Only exact resume quotes validated by the server can be marked supported.',
     requirements: validateAnalysis(parseJSON(raw), resumeText)
   };
+}
+
+export async function extractResumeProfile({ resumeText }) {
+  const status = getAIProviderStatus();
+  if (!status.configured) {
+    const error = new Error(status.message);
+    error.statusCode = 503;
+    throw error;
+  }
+  const prompt = [
+    'Extract only information explicitly present in the supplied resume text.',
+    'Return one JSON object with personalInfo, education, technicalSkills, softSkills, projects, experience, achievements, certifications, and careerPreferences arrays or objects.',
+    'Each technicalSkills item must have name, category, confidence set to self-declared, and evidenceQuote.',
+    'Do not infer proficiency, years, outcomes, employers, education, or contact details. Use empty arrays or empty strings when absent.',
+    'Every evidenceQuote must be an exact contiguous quote from the resume text or an empty string.',
+    'This is an AI extraction draft. It must not be presented as candidate-confirmed information.',
+    '',
+    'RESUME TEXT:',
+    resumeText
+  ].join('\n');
+  let raw;
+  try {
+    raw = await generate(status.provider, status.model, prompt);
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      const timeoutError = new Error('AI provider request timed out. Try again with shorter input or a local model.');
+      timeoutError.statusCode = 504;
+      throw timeoutError;
+    }
+    throw error;
+  }
+  if (!raw) throw new Error('AI provider returned no extraction text.');
+  const result = parseJSON(raw);
+  if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('AI provider returned an invalid resume extraction object.');
+  const skills = Array.isArray(result.technicalSkills) ? result.technicalSkills.slice(0, 100).flatMap(skill => {
+    const name = typeof skill?.name === 'string' ? skill.name.trim().slice(0, 120) : '';
+    const evidenceQuote = typeof skill?.evidenceQuote === 'string' && validateExactQuote(skill.evidenceQuote, resumeText)
+      ? skill.evidenceQuote.trim().slice(0, 1000) : '';
+    return name ? [{ name, category: typeof skill.category === 'string' ? skill.category.trim().slice(0, 80) : 'Other', confidence: 'self-declared', evidenceQuote }] : [];
+  }) : [];
+  return {
+    provider: status.provider,
+    model: status.model,
+    personalInfo: result.personalInfo && typeof result.personalInfo === 'object' ? result.personalInfo : {},
+    education: Array.isArray(result.education) ? result.education.slice(0, 20) : [],
+    technicalSkills: skills,
+    softSkills: Array.isArray(result.softSkills) ? result.softSkills.slice(0, 30) : [],
+    projects: Array.isArray(result.projects) ? result.projects.slice(0, 30) : [],
+    experience: Array.isArray(result.experience) ? result.experience.slice(0, 20) : [],
+    achievements: Array.isArray(result.achievements) ? result.achievements.slice(0, 30) : [],
+    certifications: Array.isArray(result.certifications) ? result.certifications.slice(0, 30) : [],
+    careerPreferences: result.careerPreferences && typeof result.careerPreferences === 'object' ? result.careerPreferences : {},
+    extractionPolicy: 'AI extraction is a draft. Candidate confirmation is required before profile updates.'
+  };
+}
+
+export async function generateResumeSuggestions({ profile, job, sections }) {
+  const status = getAIProviderStatus();
+  if (!status.configured) {
+    const error = new Error(status.message);
+    error.statusCode = 503;
+    throw error;
+  }
+  const prompt = [
+    'Generate review-only resume tailoring suggestions using only the confirmed candidate profile below.',
+    'Never invent skills, employers, dates, metrics, education, certifications, or outcomes.',
+    'Return JSON with a suggestions array of at most 10 items.',
+    'Each item must contain section, proposedText, sourceText, and rationale.',
+    'sourceText must be copied exactly from the confirmed profile and proposedText must preserve the same factual claims.',
+    'Do not suggest adding information that is absent from the confirmed profile.',
+    'These are suggestions only. The candidate must review and explicitly accept each one.',
+    '',
+    'CONFIRMED PROFILE:',
+    JSON.stringify(profile),
+    '',
+    'TARGET JOB:',
+    JSON.stringify({ title: job.title, company: job.companyName, description: job.description, requiredSkills: job.requiredSkills }),
+    '',
+    'CURRENT DRAFT SECTIONS:',
+    JSON.stringify(sections)
+  ].join('\n');
+  const { text, provider, model } = await generateAIText(prompt);
+  const parsed = parseAIJSON(text);
+  if (!parsed || !Array.isArray(parsed.suggestions)) throw new Error('AI provider returned an invalid resume suggestions object.');
+  const profileText = JSON.stringify(profile);
+  const suggestions = parsed.suggestions.slice(0, 10).flatMap((item, index) => {
+    const section = typeof item?.section === 'string' ? item.section.trim().slice(0, 80) : '';
+    const proposedText = typeof item?.proposedText === 'string' ? item.proposedText.trim().slice(0, 4000) : '';
+    const sourceText = typeof item?.sourceText === 'string' ? item.sourceText.trim().slice(0, 2000) : '';
+    const rationale = typeof item?.rationale === 'string' ? item.rationale.trim().slice(0, 500) : '';
+    if (!section || !proposedText || !sourceText || !rationale || !profileText.includes(sourceText)) return [];
+    return [{ id: `${Date.now()}-${index}`, section, proposedText, sourceText, rationale, provider, model, reviewRequired: true }];
+  });
+  return { suggestions };
 }

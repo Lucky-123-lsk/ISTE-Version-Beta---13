@@ -41,6 +41,7 @@ npm start --prefix server
 ## API areas
 
 - `POST /api/auth/demo` - Issue a short-lived JWT for the demo candidate.
+- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, and `GET /api/auth/me` - Account authentication when MongoDB is configured. Passwords are bcrypt-hashed and the access token is also issued as an HttpOnly cookie.
 - `GET /api/jobs` - MongoDB-backed search, filters, India-prioritized newest sorting, and pagination.
 - `/api/saved`, `/api/saved/jobs` - Saved listing actions and saved listing records.
 - `GET /api/jobs/sync-status` - Configured provider and latest run status without exposing credentials.
@@ -60,7 +61,7 @@ npm start --prefix server
 - Cross-source merging is conservative: canonical application URLs are preferred; otherwise a strict match requires company domain, normalized title and location, exact normalized-description hash, and a different provider. Same-title records alone are never merged.
 - Resume evidence is illustrative. File uploads and resume parsing are not enabled; provider-backed analysis is disabled by default.
 - AI integration supports server-side Gemini, Groq, or Ollama adapters. No provider is called until configured in `server/.env` and the candidate consents.
-- Real account registration, production-grade authentication, consent records, secure file storage, and enforceable long-term retention policies still need implementation.
+- Secure binary resume storage and enforceable long-term retention policies still need implementation. The legacy demo flow remains available when MongoDB is unavailable.
 - There is no job application submission feature. Candidate approval only marks a draft as reviewed.
 
 ## Configure an AI provider later
@@ -88,6 +89,20 @@ Only exact, sufficiently long quotes found in the candidate-provided resume text
 ### Rejection Coach
 
 Rejection Coach asks a few optional, skippable reflection questions and uses the configured AI provider to interpret supplied answers, feedback, and resume context, then suggest evidence-grounded next steps. Employer feedback and candidate answers are checked against exact quotes before their factors appear in the report. Both `/api/rejection/questions` and `/api/rejection/report` require authentication and explicit `consentAccepted: true`. Contact emails and phone numbers are masked before provider requests. Resume, feedback, and answers are not written to persistent storage; report results are cached in server memory for up to 20 minutes. Set optional `AI_LITE_MODEL` and `AI_STRONG_MODEL` to override the question/feedback extraction and report models; unset values fall back to `AI_MODEL` and the selected provider defaults. The selected application stage is context only, never proof of a rejection reason.
+
+### Candidate profile data layers
+
+Candidate profile data is separated into three concepts:
+
+- **Resume records** preserve the original resume metadata separately from candidate-confirmed profile data. The current upload phase stores the file record; extraction is a separate step.
+- **Candidate profile** stores information the candidate has confirmed and edited. AI extraction must not silently overwrite it.
+- **Analytics** should be calculated from the current confirmed profile and clearly labelled as completeness or profile-alignment indicators, not candidate quality scores.
+
+When MongoDB is configured, the profile foundation uses `CandidateProfile` and `ResumeDocument` records. The API exposes `GET/PUT /api/profile/record`, `POST/DELETE /api/profile/resumes`, `GET /api/profile/resumes`, and an authenticated historical resume detail route at `GET /api/profile/resumes/:id`. The existing `/api/profile` route remains compatible and now persists confirmed profile updates when MongoDB is available. Original resume text is sensitive and is never returned by the resume list endpoint. PDF/DOCX binary storage and extraction are intentionally separate follow-up phases.
+
+Resume analysis is available through `POST /api/profile/resumes/:id/analyze` after explicit consent and supplied resume text. It returns an extraction draft with exact-quote validation for skill evidence. The draft is never applied automatically; the candidate must review and explicitly choose the Career DNA apply action. PDF/DOCX binary parsing is still a separate infrastructure requirement.
+
+The Resume Tailoring Studio provides review-only job alignment comparison at `/api/profile/job-analysis`, candidate-controlled tailored drafts, explicit approval, application association, grounded AI suggestions, plain-text download, and browser print/Save as PDF. It maps stored job requirements against confirmed Career DNA and gives evidence-based next steps. Native PDF/DOCX file generation is not provided, and no export or approval submits an application.
 
 ## Configure job ingestion
 
