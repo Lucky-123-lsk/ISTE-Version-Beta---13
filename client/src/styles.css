@@ -240,6 +240,15 @@ th { color: var(--muted); font-size: 13px; font-weight: 600; }
 .ai-form > label:not(.check-label) { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
 .analysis-item { padding: 14px 0; border-top: 1px solid var(--border); }
 .analysis-item h3, .analysis-item p { margin-bottom: 6px; }
+.rejection-panel { max-width: 860px; }
+.rejection-progress { height: 7px; margin: 14px 0 20px; overflow: hidden; border-radius: 6px; background: var(--surface); }
+.rejection-progress span { display: block; height: 100%; border-radius: inherit; background: var(--blue); transition: width .2s ease; }
+.rejection-step { display: grid; gap: 12px; }
+.rejection-step label:not(.check-label) { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.rejection-step .button-row { margin-bottom: 0; }
+.rejection-factor { padding: 14px 0; border-top: 1px solid var(--border); }
+.rejection-factor p { margin: 8px 0 0; }
+.rejection-report ul { padding-left: 22px; }
 .toast { position: fixed; right: 24px; bottom: 24px; max-width: min(420px, calc(100vw - 32px)); padding: 11px 16px; border: 0; border-radius: 6px; color: #FFFFFF; background: var(--navy); text-align: left; }
 
 @media (max-width: 900px) {

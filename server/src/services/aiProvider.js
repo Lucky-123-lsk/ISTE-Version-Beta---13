@@ -144,19 +144,49 @@ async function generate(provider, model, prompt) {
   return extractText(provider, payload);
 }
 
+export async function generateAIText(prompt, { model } = {}) {
+  const status = getAIProviderStatus();
+  if (!status.configured) {
+    const error = new Error(status.message);
+    error.statusCode = 503;
+    throw error;
+  }
+  try {
+    const text = await generate(status.provider, model || status.model, prompt);
+    if (!text) throw new Error('AI provider returned no analysis text.');
+    return { text, provider: status.provider, model: model || status.model };
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      const timeoutError = new Error('AI provider request timed out. Try again with shorter input or a local model.');
+      timeoutError.statusCode = 504;
+      throw timeoutError;
+    }
+    throw error;
+  }
+}
+
+export function parseAIJSON(text) {
+  return parseJSON(text);
+}
+
 function normalizeText(text) {
   return text.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+export function validateExactQuote(quote, sourceText, minimumLength = 12) {
+  if (typeof quote !== 'string' || typeof sourceText !== 'string') return false;
+  const trimmedQuote = quote.trim();
+  return trimmedQuote.length >= minimumLength && normalizeText(sourceText).includes(normalizeText(trimmedQuote));
 }
 
 function validateAnalysis(result, resumeText) {
   if (!result || !Array.isArray(result.requirements)) {
     throw new Error('AI provider response did not contain a requirements array.');
   }
-  const resume = normalizeText(resumeText);
   return result.requirements.slice(0, 30).map((item, index) => {
     const requirement = typeof item.requirement === 'string' ? item.requirement.trim().slice(0, 300) : `Requirement ${index + 1}`;
     const evidenceQuote = typeof item.evidenceQuote === 'string' ? item.evidenceQuote.trim().slice(0, 1000) : '';
-    const hasExactEvidence = evidenceQuote.length >= 12 && resume.includes(normalizeText(evidenceQuote));
+    const hasExactEvidence = validateExactQuote(evidenceQuote, resumeText);
     const recommendation = typeof item.recommendation === 'string'
       ? item.recommendation.trim().slice(0, 500)
       : '';

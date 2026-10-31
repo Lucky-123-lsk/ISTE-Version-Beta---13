@@ -2,7 +2,7 @@ import Job from '../../models/job.js';
 import JobSource from '../../models/jobSource.js';
 
 const searchableFields = [
-  'companyName', 'companyDomain', 'description', 'location', 'country', 'countryCode',
+  'title', 'companyName', 'companyDomain', 'description', 'location', 'country', 'countryCode',
   'workplaceType', 'employmentType', 'experienceRequirements', 'requiredSkills',
   'preferredSkills', 'applicationUrl', 'canonicalUrl', 'normalizedTitle', 'normalizedLocation',
   'descriptionHash', 'postedAt', 'salary'

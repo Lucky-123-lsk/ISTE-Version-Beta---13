@@ -1,11 +1,12 @@
 import mongoose from 'mongoose';
 import JobSyncRun from '../../models/jobSyncRun.js';
 import { getCompanyRegistry } from '../../config/jobCompanies.js';
-import { normalizeAshby, normalizeGreenhouse, normalizeLever, normalizeTheirStack } from './normalize.js';
+import { normalizeAdzuna, normalizeAshby, normalizeGreenhouse, normalizeLever, normalizeTheirStack } from './normalize.js';
 import { persistListing } from './store.js';
 import { fetchAshbyJobs } from './providers/ashby.js';
 import { fetchGreenhouseJobs } from './providers/greenhouse.js';
 import { fetchLeverJobs } from './providers/lever.js';
+import { fetchAdzunaJobs, isAdzunaConfigured } from './providers/adzuna.js';
 import { fetchTheirStackJobs, isTheirStackConfigured } from './providers/theirStack.js';
 
 const adapterByProvider = {
@@ -37,6 +38,13 @@ async function runSynchronization(requestedProviders) {
     outcomes.push(await syncTheirStack());
   }
 
+  const adzunaRequested = !selected || selected.has('adzuna');
+  if (adzunaRequested && !isAdzunaConfigured()) {
+    outcomes.push(await recordSkipped('adzuna', 'ADZUNA_APP_ID and ADZUNA_APP_KEY are not configured.'));
+  } else if (adzunaRequested) {
+    outcomes.push(await syncAdzuna());
+  }
+
   for (const [provider, adapter] of Object.entries(adapterByProvider)) {
     if (selected && !selected.has(provider)) continue;
     const companies = registry.filter(company => company.atsProvider === provider);
@@ -49,6 +57,29 @@ async function runSynchronization(requestedProviders) {
     }
   }
   return { outcomes, completedAt: new Date().toISOString() };
+}
+
+async function syncAdzuna() {
+  const run = await startRun('adzuna', 'global-search');
+  try {
+    const { jobs, pages, fetched, truncated } = await fetchAdzunaJobs({
+      onPage: async page => {
+        run.pages = page.callCount;
+        run.fetched += page.count;
+        await run.save();
+      }
+    });
+    const persisted = await saveListings(jobs, normalizeAdzuna);
+    return await finishRun(run, {
+      status: truncated ? 'partial' : 'succeeded',
+      fetched, normalized: persisted.normalized, inserted: persisted.inserted,
+      updated: persisted.normalized - persisted.inserted, rejected: persisted.rejected, pages,
+      error: truncated ? 'Adzuna pagination reached ADZUNA_MAX_PAGES; additional results may remain.' : ''
+    });
+  } catch (error) {
+    if (Number.isInteger(error.requestCount)) run.pages = error.requestCount;
+    return await finishRun(run, { status: 'failed', error: safeMessage(error) });
+  }
 }
 
 async function syncTheirStack() {
@@ -137,7 +168,7 @@ async function finishRun(run, result) {
     provider: run.provider, sourceId: run.sourceId, status: run.status, fetched: run.fetched,
     normalized: run.normalized, inserted: run.inserted, updated: run.updated,
     rejected: run.rejected, pages: run.pages, creditsEstimated: run.creditsEstimated,
-    nextOffset: run.nextOffset, error: run.error
+    nextOffset: run.nextOffset, calls: run.provider === 'adzuna' ? run.pages : undefined, error: run.error
   };
 }
 

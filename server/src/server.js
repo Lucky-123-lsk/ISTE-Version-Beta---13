@@ -8,6 +8,7 @@ import Job from './models/job.js';
 import JobSource from './models/jobSource.js';
 import JobSyncRun from './models/jobSyncRun.js';
 import { analyzeResume, getAIProviderStatus } from './services/aiProvider.js';
+import { computeGaps, generateReport, getFixedQuestions, planQuestions } from './services/rejectionCoach.js';
 import { getCompanyRegistry } from './config/jobCompanies.js';
 import { startJobSyncScheduler } from './services/jobIngestion/scheduler.js';
 import { synchronizeJobs } from './services/jobIngestion/sync.js';
@@ -202,6 +203,88 @@ app.post('/api/ai/resume-analysis', requireAuth, async (req, res) => {
     return res.status(error.statusCode || 502).json({ error: error.message || 'Resume analysis failed.' });
   }
 });
+
+async function getRejectionJob(jobId) {
+  if (!jobId) return null;
+  if (typeof jobId !== 'string' || !mongoose.Types.ObjectId.isValid(jobId)) {
+    const error = new Error('Select a valid job listing or continue without one.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (mongoose.connection.readyState !== 1) {
+    const error = new Error('Job details are unavailable because MongoDB is not connected.');
+    error.statusCode = 503;
+    throw error;
+  }
+  const job = await Job.findById(jobId).lean();
+  if (!job) {
+    const error = new Error('The selected job listing could not be found.');
+    error.statusCode = 404;
+    throw error;
+  }
+  return job;
+}
+
+app.post('/api/rejection/questions', requireAuth, asyncRoute(async (req, res) => {
+  if (req.body?.consentAccepted !== true) return res.status(400).json({ error: 'Consent is required before sending information to an AI provider.' });
+  try {
+    const job = await getRejectionJob(req.body?.jobId);
+    const profile = getProfile(req.user.id);
+    const gaps = computeGaps(profile, job || {});
+    const known = {
+      skills: (profile.existingSkills || []).filter(skill => ['verified', 'self-declared'].includes(skill.confidence)).map(skill => skill.name),
+      yearsExperience: profile.yearsExperience,
+      workAuthorizationCountries: profile.workAuthorizationCountries || []
+    };
+    const questions = await planQuestions({
+      stage: req.body?.stage,
+      feedbackType: req.body?.feedbackType,
+      gaps,
+      known
+    });
+    return res.json({
+      ...questions,
+      gaps,
+      stage: req.body?.stage || 'unknown',
+      dataHandling: 'Inputs are processed for this request and are not saved by this API.'
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 502).json({ error: error.message || 'Could not prepare reflection questions.' });
+  }
+}));
+
+app.post('/api/rejection/report', requireAuth, asyncRoute(async (req, res) => {
+  if (req.body?.consentAccepted !== true) return res.status(400).json({ error: 'Consent is required before sending information to an AI provider.' });
+  const resumeText = typeof req.body?.resumeText === 'string' ? req.body.resumeText.trim() : '';
+  const pastedText = typeof req.body?.pastedText === 'string' ? req.body.pastedText.trim() : '';
+  if (resumeText.length > 20000) return res.status(413).json({ error: 'Resume text must be 20,000 characters or fewer.' });
+  if (pastedText.length > 12000) return res.status(413).json({ error: 'Feedback text must be 12,000 characters or fewer.' });
+  if (req.body?.answers !== undefined && !Array.isArray(req.body.answers)) return res.status(400).json({ error: 'answers must be an array.' });
+  try {
+    const job = await getRejectionJob(req.body?.jobId);
+    const profile = getProfile(req.user.id);
+    const gaps = computeGaps(profile, job || {});
+    const known = {
+      skills: (profile.existingSkills || []).filter(skill => ['verified', 'self-declared'].includes(skill.confidence)).map(skill => skill.name),
+      yearsExperience: profile.yearsExperience,
+      workAuthorizationCountries: profile.workAuthorizationCountries || []
+    };
+    const report = await generateReport({
+      resumeText,
+      pastedText,
+      jobId: req.body?.jobId,
+      stage: req.body?.stage,
+      feedbackType: req.body?.feedbackType,
+      answers: req.body?.answers,
+      gaps,
+      known
+    });
+    return res.json({ ...report, dataHandling: 'Inputs are processed for this request and temporarily cached in memory; no pasted feedback or resume is written to persistent storage.' });
+  } catch (error) {
+    return res.status(error.statusCode || 502).json({ error: error.message || 'Could not generate the reflection report.' });
+  }
+}));
+
 app.post('/api/auth/demo', (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.slice(0, 120) : 'demo@example.com';
   const token = jwt.sign({ id: 'demo-user', email }, secret, { expiresIn: '12h' });
@@ -211,7 +294,11 @@ app.post('/api/auth/demo', (req, res) => {
 app.get('/api/jobs/sync-status', asyncRoute(async (req, res) => {
   if (mongoose.connection.readyState !== 1) return res.json({
     mongodbConnected: false,
-    configured: { theirstack: Boolean(process.env.THEIRSTACK_API_KEY), greenhouse: false, lever: false, ashby: false },
+    configured: {
+      theirstack: Boolean(process.env.THEIRSTACK_API_KEY),
+      adzuna: Boolean(process.env.ADZUNA_APP_ID?.trim() && process.env.ADZUNA_APP_KEY?.trim()),
+      greenhouse: false, lever: false, ashby: false
+    },
     latestRuns: []
   });
   try {
@@ -226,6 +313,7 @@ app.get('/api/jobs/sync-status', asyncRoute(async (req, res) => {
       mongodbConnected: true,
       configured: {
         theirstack: Boolean(process.env.THEIRSTACK_API_KEY),
+        adzuna: Boolean(process.env.ADZUNA_APP_ID?.trim() && process.env.ADZUNA_APP_KEY?.trim()),
         greenhouse: registry.some(company => company.atsProvider === 'greenhouse'),
         lever: registry.some(company => company.atsProvider === 'lever'),
         ashby: registry.some(company => company.atsProvider === 'ashby')
@@ -250,7 +338,7 @@ app.post('/api/admin/jobs/sync', asyncRoute(async (req, res) => {
   if (!process.env.JOB_SYNC_TOKEN) return res.status(503).json({ error: 'Set JOB_SYNC_TOKEN on the server to enable manual synchronization.' });
   if (!isSyncAuthorized(req)) return res.status(401).json({ error: 'Invalid job synchronization token.' });
   const providers = req.body?.providers;
-  if (providers !== undefined && (!Array.isArray(providers) || !providers.length || providers.some(provider => !['theirstack', 'greenhouse', 'lever', 'ashby'].includes(provider)))) {
+  if (providers !== undefined && (!Array.isArray(providers) || !providers.length || providers.some(provider => !['theirstack', 'adzuna', 'greenhouse', 'lever', 'ashby'].includes(provider)))) {
     return res.status(400).json({ error: 'providers must be a non-empty array of supported source names.' });
   }
   try {

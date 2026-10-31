@@ -55,7 +55,7 @@ const api = async (path, options = {}) => {
 const navigation = [
   ['Workspace', [['overview', 'Overview'], ['discover', 'Discover Jobs'], ['saved', 'Saved Jobs'], ['career-dna', 'Career DNA'], ['trustlens', 'TrustLens']]],
   ['Applications', [['planner', 'TimeBudget Planner'], ['applications', 'My Applications']]],
-  ['Career Intelligence', [['proofpath', 'ProofPath Studio'], ['ai-studio', 'AI Studio'], ['realitycheck', 'RealityCheck']]],
+  ['Career Intelligence', [['proofpath', 'ProofPath Studio'], ['ai-studio', 'AI Studio'], ['rejection-coach', 'Rejection Coach'], ['realitycheck', 'RealityCheck']]],
   ['Account', [['privacy', 'PrivacyVault'], ['settings', 'Settings']]]
 ];
 const pageTitles = Object.fromEntries(navigation.flatMap(([, items]) => items));
@@ -202,6 +202,8 @@ function App() {
     page = <ProofPath evidence={evidence} onDraft={draft => api('/resume/drafts', { method: 'POST', body: JSON.stringify(draft) })} onApprove={id => api(`/resume/drafts/${id}/approve`, { method: 'POST' })} />;
   } else if (route === 'ai-studio') {
     page = <AIStudio status={aiStatus} jobs={jobs} />;
+  } else if (route === 'rejection-coach') {
+    page = <RejectionCoach jobs={jobs} />;
   } else if (route === 'realitycheck') {
     page = <RealityCheck insights={insights} />;
   } else if (route === 'privacy') {
@@ -509,6 +511,175 @@ function AIStudio({ status, jobs }) {
       <button className="btn primary" type="submit" disabled={!status.configured || !consent || working}>{working ? 'Analyzing...' : 'Analyze resume evidence'}</button>
     </form>
     {analysis && <section className="card"><p className="eyebrow">ANALYSIS RESULT</p><h2>Evidence review</h2><p className="muted sm">Provider: {analysis.provider} - {analysis.model}. {analysis.dataHandling}</p><div className="notice">{analysis.evidencePolicy}</div>{analysis.requirements.map((item, index) => <article className="analysis-item" key={`${item.requirement}-${index}`}><div className="section-heading"><h3>{item.requirement}</h3><Badge kind={item.status === 'supported-by-exact-quote' ? 'ok' : 'warn'}>{item.status === 'supported-by-exact-quote' ? 'Exact resume quote found' : 'Insufficient evidence'}</Badge></div>{item.status === 'supported-by-exact-quote' && item.evidenceQuote && <blockquote>{item.evidenceQuote}</blockquote>}<p>{item.status === 'supported-by-exact-quote' && item.claim ? item.claim : 'No factual claim is displayed as supported without an exact matching resume quote.'}</p>{item.recommendation && <p className="muted sm">{item.recommendation}</p>}</article>)}</section>}
+  </>;
+}
+
+function RejectionCoach({ jobs }) {
+  const stages = [
+    ['unknown', 'Unknown'],
+    ['resume-screening', 'Resume screening'],
+    ['online-assessment', 'Online assessment'],
+    ['technical-interview', 'Technical interview'],
+    ['hr-interview', 'HR interview'],
+    ['final-selection', 'Final selection']
+  ];
+  const [step, setStep] = useState(0);
+  const [stage, setStage] = useState('unknown');
+  const [feedbackType, setFeedbackType] = useState('unknown');
+  const [jobId, setJobId] = useState('');
+  const [resumeText, setResumeText] = useState('');
+  const [pastedText, setPastedText] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [report, setReport] = useState(null);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!jobId && jobs.length) setJobId(jobs[0].id);
+  }, [jobs, jobId]);
+
+  const loadQuestions = async nextStage => {
+    if (!consent) {
+      setError('Please consent before sending information to the configured AI provider.');
+      return;
+    }
+    setWorking(true);
+    setError('');
+    try {
+      const result = await api('/rejection/questions', {
+        method: 'POST',
+        body: JSON.stringify({ stage: nextStage, feedbackType, jobId, consentAccepted: consent })
+      });
+      setQuestions([...(result.fixedQuestions || []), ...(result.plannedQuestions || [])]);
+      setQuestionIndex(0);
+      setStep(1);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const goToFeedback = nextStage => {
+    setStage(nextStage);
+    loadQuestions(nextStage);
+  };
+
+  const saveAnswerAndContinue = answer => {
+    const current = questions[questionIndex];
+    if (current) setAnswers(previous => {
+      const next = { ...previous };
+      if (answer.trim()) next[current.id] = { question: current.question, answer: answer.trim() };
+      else delete next[current.id];
+      return next;
+    });
+    if (questionIndex + 1 < questions.length) {
+      setQuestionIndex(index => index + 1);
+    } else {
+      setStep(3);
+    }
+  };
+
+  const createReport = async () => {
+    setWorking(true);
+    setError('');
+    try {
+      const result = await api('/rejection/report', {
+        method: 'POST',
+        body: JSON.stringify({
+          stage,
+          feedbackType,
+          jobId: jobId || undefined,
+          resumeText,
+          pastedText,
+          answers: Object.values(answers),
+          consentAccepted: consent
+        })
+      });
+      setReport(result);
+      setStep(4);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const progress = step === 4 ? 100 : Math.min(95, Math.round((step / 3) * 100));
+  const currentQuestion = questions[questionIndex];
+  const currentAnswer = currentQuestion ? answers[currentQuestion.id]?.answer || '' : '';
+
+  return <>
+    <p className="muted">Reflect on the information you choose to share. The rejection stage is context only and does not establish a cause.</p>
+    <section className="card rejection-panel">
+      <div className="section-heading"><div><p className="eyebrow">CANDIDATE-CONTROLLED REFLECTION</p><h2>{step === 4 ? 'Your reflection report' : 'Rejection Coach'}</h2></div><span className="muted sm">{step === 4 ? 'Complete' : `Step ${Math.min(step + 1, 4)} of 4`}</span></div>
+      <div className="rejection-progress" role="progressbar" aria-label="Reflection progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div>
+      {error && <div className="notice error" role="alert">{error}</div>}
+      {working && <div className="notice" role="status">Preparing your reflection securely...</div>}
+
+      {step === 0 && <div className="rejection-step">
+        <h3>Share only what is useful</h3>
+        <label>Related job (optional)<select value={jobId} onChange={event => setJobId(event.target.value)}><option value="">Continue without a selected job</option>{jobs.map(job => <option value={job.id} key={job.id}>{job.title} - {job.company}</option>)}</select></label>
+        <label>Application stage<select value={stage} onChange={event => setStage(event.target.value)}>{stages.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>Resume text (optional; contact details are masked before provider requests)<textarea value={resumeText} onChange={event => setResumeText(event.target.value)} rows="5" maxLength="20000" placeholder="Paste relevant resume text, or skip it." /></label>
+        <label className="check-label"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /> I consent to sending the information I provide here to the configured AI provider. The API does not save these inputs to persistent storage.</label>
+        <div className="button-row"><button className="btn primary" disabled={working || !consent} onClick={() => loadQuestions(stage)}>Continue</button><button className="btn" disabled={working || !consent} onClick={() => goToFeedback('unknown')}>Skip stage</button></div>
+      </div>}
+
+      {step === 1 && <div className="rejection-step">
+        <h3>Was any feedback shared?</h3>
+        <label>Feedback type<select value={feedbackType} onChange={event => setFeedbackType(event.target.value)}><option value="unknown">Prefer not to say / unknown</option><option value="written">Yes, written feedback</option><option value="verbal">Yes, verbal feedback</option><option value="none">No feedback</option></select></label>
+        <label>Optional feedback text<textarea value={pastedText} onChange={event => setPastedText(event.target.value)} rows="5" maxLength="12000" placeholder="You may paste relevant feedback. Email addresses and phone numbers are masked before AI requests." /></label>
+        <div className="button-row"><button className="btn primary" onClick={() => setStep(2)}>Continue</button><button className="btn" onClick={() => { setPastedText(''); setFeedbackType('unknown'); setStep(2); }}>Skip this step</button></div>
+      </div>}
+
+      {step === 2 && currentQuestion && <div className="rejection-step">
+        <p className="eyebrow">OPTIONAL QUESTION {questionIndex + 1} OF {questions.length}</p>
+        <h3>{currentQuestion.question}</h3>
+        <p className="muted sm">{currentQuestion.why_it_helps}</p>
+        <textarea value={currentAnswer} onChange={event => setAnswers(previous => ({ ...previous, [currentQuestion.id]: { question: currentQuestion.question, answer: event.target.value } }))} rows="4" maxLength="1500" placeholder="Your answer is optional." />
+        <div className="button-row"><button className="btn primary" onClick={() => saveAnswerAndContinue(currentAnswer)}>{questionIndex + 1 < questions.length ? 'Continue' : 'Review inputs'}</button><button className="btn" onClick={() => saveAnswerAndContinue('')}>Skip this question</button></div>
+      </div>}
+
+      {step === 3 && <div className="rejection-step">
+        <h3>Ready when you are</h3><p className="muted">The report distinguishes employer statements from other possibilities. Any missing evidence stays unknown; the stage alone is not treated as a cause.</p>
+        <div className="button-row"><button className="btn primary" disabled={working || !consent} onClick={createReport}>Generate reflection report</button><button className="btn" disabled={working} onClick={() => setStep(4)}>Skip report</button></div>
+      </div>}
+
+      {step === 4 && report && <div className="rejection-report">
+        <div className="notice">{report.summary}</div>
+        <div className="notice"><strong>Confidence: {report.confidence}</strong><br />{report.confidence_basis}</div>
+        <h3>Possible factors</h3>
+        {report.possible_factors?.length ? report.possible_factors.map((factor, index) => <article className="rejection-factor" key={`${factor.source}-${index}`}>
+          <div className="section-heading"><strong>{factor.factor}</strong><Badge kind={factor.source === 'employer-stated' ? 'ok' : 'warn'}>{factor.source === 'employer-stated' ? 'Employer-stated' : 'Possible, not confirmed'}</Badge></div>
+          <p className="sm"><strong>Evidence:</strong> {factor.evidence}</p>
+          {factor.interpretation && <p className="sm"><strong>Reflection:</strong> {factor.interpretation}</p>}
+          {factor.next_step && <p className="sm"><strong>Possible next step:</strong> {factor.next_step}</p>}
+          {factor.note && <p className="muted sm">{factor.note}</p>}
+        </article>) : <p className="muted">No specific factors could be supported by the information shared.</p>}
+        <h3>Not determinable from available information</h3>
+        <ul>{report.not_determinable?.map((item, index) => <li key={index}>{item}</li>)}</ul>
+        <p className="notice">{report.note}</p>
+        <p className="muted sm">{report.dataHandling}</p>
+        <button className="btn" onClick={() => {
+          setStep(0);
+          setStage('unknown');
+          setFeedbackType('unknown');
+          setResumeText('');
+          setPastedText('');
+          setConsent(false);
+          setQuestions([]);
+          setQuestionIndex(0);
+          setAnswers({});
+          setReport(null);
+          setError('');
+        }}>Start another reflection</button>
+      </div>}
+      {step === 4 && !report && <div className="rejection-step"><p className="muted">No report was generated. Your answers remain under your control.</p><button className="btn" onClick={() => setStep(0)}>Return to start</button></div>}
+    </section>
   </>;
 }
 

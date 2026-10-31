@@ -85,6 +85,10 @@ AI Studio displays configuration status without exposing secrets. Before analysi
 
 Only exact, sufficiently long quotes found in the candidate-provided resume text can receive the `supported-by-exact-quote` label. All other results are marked `insufficient-evidence`; this is a deterministic check, not a guarantee that the provider's interpretation is correct.
 
+### Rejection Coach
+
+Rejection Coach asks a few optional, skippable reflection questions and uses the configured AI provider to interpret supplied answers, feedback, and resume context, then suggest evidence-grounded next steps. Employer feedback and candidate answers are checked against exact quotes before their factors appear in the report. Both `/api/rejection/questions` and `/api/rejection/report` require authentication and explicit `consentAccepted: true`. Contact emails and phone numbers are masked before provider requests. Resume, feedback, and answers are not written to persistent storage; report results are cached in server memory for up to 20 minutes. Set optional `AI_LITE_MODEL` and `AI_STRONG_MODEL` to override the question/feedback extraction and report models; unset values fall back to `AI_MODEL` and the selected provider defaults. The selected application stage is context only, never proof of a rejection reason.
+
 ## Configure job ingestion
 
 Set `MONGODB_URI` and the optional ingestion settings in `server/.env`. The `Job`, `JobSource`, and `JobSyncRun` Mongoose models create their indexes when the API connects. There was no prior MongoDB job schema or data migration to preserve.
@@ -92,6 +96,10 @@ Set `MONGODB_URI` and the optional ingestion settings in `server/.env`. The `Job
 TheirStack is the broad search source and requires a server-side `THEIRSTACK_API_KEY`. The adapter uses the documented `POST https://api.theirstack.com/v1/jobs/search` endpoint, Bearer authentication, `job_title_or` role searches, and `limit`/`offset` pagination over the response `data` and `metadata.total_results`. It honors transient `429`/`5xx` responses with bounded retries and `Retry-After` when supplied. Account quotas and limits vary; check the current TheirStack plan and API documentation.
 
 TheirStack requires at least one posted-date filter; the adapter sends `posted_at_max_age_days` (default 90) and uses `discovered_at_gte` with an offset checkpoint for incremental synchronization and recovery after partial or failed runs. Each returned result consumes a credit, and TheirStack can check available credits against the requested page limit before returning results. Defaults cap a run at 50 results per page and two pages (`THEIRSTACK_PAGE_SIZE` and `THEIRSTACK_MAX_PAGES`), but even a small search can require enough balance for a full page. Lower these values to fit the available account balance. Sync records and the status endpoint expose result/credit estimates and pagination progress; a 402 response recommends reducing the page size. Keep the 90-day posted-date lookback in mind when configuring backfill.
+
+### Adzuna
+
+Create free API credentials at [developer.adzuna.com](https://developer.adzuna.com/) and set `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` in the server-only `.env`. Configure `ADZUNA_COUNTRIES` (default `in`), `ADZUNA_PAGE_SIZE` (default 20, maximum 50), `ADZUNA_MAX_PAGES` (default 2), and `ADZUNA_MAX_DAYS_OLD` (default 30). Adzuna has a free-tier call limit: every requested page is one API call, so the approximate maximum per run is search titles × countries × `ADZUNA_MAX_PAGES`. The Adzuna sync outcome reports the actual page-call count; retries can add additional API calls. Keep the page cap conservative and monitor your account quota. The Adzuna guide's sample URL uses HTTP; this adapter uses HTTPS with the same route and query parameters to protect credentials sent in the URL. Job descriptions are snippets from Adzuna, so extracted skills may be incomplete. Each listing links to its original Adzuna redirect/application URL for attribution and application.
 
 Greenhouse, Lever, and Ashby are public per-company board APIs. Configure known board identifiers as a JSON array, for example:
 
@@ -101,7 +109,7 @@ JOB_COMPANIES_JSON=[{"name":"Company name","domain":"company.example","careerPag
 
 The ATS company registry accepts `atsProvider` values `greenhouse`, `lever`, or `ashby`, plus the company's `name`, provider `boardId`, and optional `careerPage` and `domain`. The example above is a template, not a live board. Do not add made-up board IDs. Greenhouse returns the public board listing in one supported request; Lever uses its documented `skip`/`limit` pagination; Ashby's public job-board endpoint returns the currently listed jobs and does not expose pagination in its published API.
 
-The server performs an initial backfill after connecting to MongoDB, then syncs every `JOB_SYNC_INTERVAL_MINUTES` (default 360). Configuring a TheirStack key enables scheduled requests, which may consume account credits. It is a lightweight **single-process** scheduler; run one API instance unless an external distributed lock/queue is added. Repeated syncs update source and canonical records idempotently. Greenhouse and Ashby fetch current board listings; Lever paginates up to `JOB_SYNC_MAX_PAGES`, and TheirStack uses its separate `THEIRSTACK_MAX_PAGES` cap. Temporary failures are logged and do not mark unseen jobs expired.
+The server performs an initial backfill after connecting to MongoDB, then syncs every `JOB_SYNC_INTERVAL_MINUTES` (default 360). Configuring a TheirStack or Adzuna key enables scheduled requests, which may consume account credits or API calls. It is a lightweight **single-process** scheduler; run one API instance unless an external distributed lock/queue is added. Repeated syncs update source and canonical records idempotently. Greenhouse and Ashby fetch current board listings; Lever paginates up to `JOB_SYNC_MAX_PAGES`, TheirStack uses its separate `THEIRSTACK_MAX_PAGES` cap, and Adzuna uses `ADZUNA_MAX_PAGES` for each title and country. Temporary failures are logged and do not mark unseen jobs expired.
 
 Run one synchronization on demand:
 
@@ -115,6 +123,7 @@ Optional settings include `JOB_SEARCH_TITLES` (pipe-separated role queries), `JO
 
 Provider documentation:
 
+- [Adzuna Search API](https://developer.adzuna.com/docs/search) and [developer portal](https://developer.adzuna.com/).
 - [TheirStack API reference](https://theirstack.com/en/docs/api-reference), [Search Jobs](https://theirstack.com/en/docs/api-reference/jobs/search_jobs_v1), [authentication](https://theirstack.com/en/docs/api-reference/authentication), [pagination](https://theirstack.com/en/docs/api-reference/pagination), and [rate limits](https://theirstack.com/en/docs/api-reference/rate-limit).
 - [Greenhouse Job Board API](https://developers.greenhouse.io/job-board.html).
 - [Lever Postings API](https://github.com/Lever/postings-api).

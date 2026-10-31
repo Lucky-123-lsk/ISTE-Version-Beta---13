@@ -221,7 +221,45 @@ export function normalizeAshby(job, company) {
   });
 }
 
+const adzunaCurrencies = {
+  at: 'EUR', au: 'AUD', be: 'EUR', br: 'BRL', ca: 'CAD', ch: 'CHF',
+  de: 'EUR', es: 'EUR', fr: 'EUR', gb: 'GBP', in: 'INR', it: 'EUR',
+  mx: 'MXN', nl: 'EUR', nz: 'NZD', pl: 'PLN', sg: 'SGD', us: 'USD',
+  za: 'ZAR'
+};
+
+export function normalizeAdzuna(job) {
+  const predicted = job.salary_is_predicted === '1' || job.salary_is_predicted === 1;
+  const employmentType = [job.contract_time, job.contract_type]
+    .filter(value => typeof value === 'string' && value.trim())
+    .join(' ')
+    .toLowerCase();
+  const listing = normalizeJob({
+    provider: 'adzuna',
+    externalJobId: job.id,
+    companyName: job.company?.display_name,
+    title: job.title,
+    description: job.description,
+    location: job.location?.display_name,
+    countryCode: job.countryCode,
+    postedAt: job.created,
+    applicationUrl: job.redirect_url,
+    sourceUrl: job.redirect_url,
+    employmentType,
+    salaryText: predicted ? 'Estimated by Adzuna' : '',
+    salaryMinimum: predicted ? null : job.salary_min,
+    salaryMaximum: predicted ? null : job.salary_max,
+    salaryCurrency: adzunaCurrencies[String(job.countryCode || '').toLowerCase()] || '',
+    salaryPeriod: 'year',
+    status: 'active',
+    verificationEvidence: 'Observed in Adzuna job search response.'
+  });
+  if (listing && employmentType) listing.employmentType = employmentType;
+  return listing;
+}
+
 function numericOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }

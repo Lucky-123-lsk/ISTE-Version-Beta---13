@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeAshby, normalizeGreenhouse, normalizeLever, normalizeTheirStack, canonicalizeUrl } from '../src/services/jobIngestion/normalize.js';
+import { normalizeAdzuna, normalizeAshby, normalizeGreenhouse, normalizeLever, normalizeTheirStack, canonicalizeUrl } from '../src/services/jobIngestion/normalize.js';
 import { aggregateStatus } from '../src/services/jobIngestion/store.js';
 import { fetchTheirStackJobs } from '../src/services/jobIngestion/providers/theirStack.js';
 import { fetchGreenhouseJobs } from '../src/services/jobIngestion/providers/greenhouse.js';
 import { fetchLeverJobs } from '../src/services/jobIngestion/providers/lever.js';
 import { fetchAshbyJobs } from '../src/services/jobIngestion/providers/ashby.js';
+import { fetchAdzunaJobs, isAdzunaConfigured } from '../src/services/jobIngestion/providers/adzuna.js';
 import { fetchJSON } from '../src/services/jobIngestion/http.js';
 import { matchJob } from '../src/services/jobMatching.js';
 import { getCompanyRegistry } from '../src/config/jobCompanies.js';
@@ -83,6 +84,74 @@ test('Ashby normalization retains board URL and listed status evidence', () => {
   assert.equal(listing.workplaceType, 'hybrid');
   assert.equal(listing.salary.minimum, 80000);
   assert.equal(listing.salary.currency, 'USD');
+});
+
+test('Adzuna normalization maps listing data, salary currency, and source evidence', () => {
+  const listing = normalizeAdzuna({
+    id: 'adzuna-1',
+    title: 'Backend Developer',
+    company: { display_name: 'Example Co' },
+    description: 'Requirements: Java and REST APIs.',
+    location: { display_name: 'Bhopal, India' },
+    countryCode: 'IN',
+    created: '2026-10-25T10:00:00Z',
+    redirect_url: 'https://www.adzuna.in/jobs/adzuna-1',
+    contract_time: 'full_time',
+    contract_type: 'permanent',
+    salary_min: 1200000,
+    salary_max: 1800000,
+    salary_is_predicted: 0
+  });
+  assert.equal(listing.provider, 'adzuna');
+  assert.equal(listing.employmentType, 'full_time permanent');
+  assert.equal(listing.countryCode, 'IN');
+  assert.equal(listing.salary.minimum, 1200000);
+  assert.equal(listing.salary.maximum, 1800000);
+  assert.equal(listing.salary.currency, 'INR');
+  assert.equal(listing.salary.period, 'year');
+  assert.equal(listing.applicationUrl, 'https://www.adzuna.in/jobs/adzuna-1');
+  assert.equal(listing.sourceUrl, 'https://www.adzuna.in/jobs/adzuna-1');
+  assert.equal(listing.status, 'active');
+  assert.equal(listing.verificationEvidence, 'Observed in Adzuna job search response.');
+});
+
+test('Adzuna does not present predicted salary estimates as stated salary', () => {
+  const listing = normalizeAdzuna({
+    id: 'adzuna-predicted',
+    title: 'Software Engineer',
+    company: { display_name: 'Example Co' },
+    countryCode: 'gb',
+    redirect_url: 'https://www.adzuna.co.uk/jobs/adzuna-predicted',
+    salary_min: 50000,
+    salary_max: 70000,
+    salary_is_predicted: '1'
+  });
+  assert.equal(listing.salary.minimum, null);
+  assert.equal(listing.salary.maximum, null);
+  assert.equal(listing.salary.text, 'Estimated by Adzuna');
+  assert.equal(listing.salary.currency, 'GBP');
+});
+
+test('Adzuna normalization rejects listings missing required fields', () => {
+  assert.equal(normalizeAdzuna({ id: 'missing-company', title: 'Developer' }), null);
+  assert.equal(normalizeAdzuna({ title: 'Developer', company: { display_name: 'Example Co' } }), null);
+});
+
+test('Adzuna configuration requires both non-empty credentials', () => {
+  const previousId = process.env.ADZUNA_APP_ID;
+  const previousKey = process.env.ADZUNA_APP_KEY;
+  try {
+    process.env.ADZUNA_APP_ID = 'mock-app-id';
+    delete process.env.ADZUNA_APP_KEY;
+    assert.equal(isAdzunaConfigured(), false);
+    process.env.ADZUNA_APP_KEY = 'mock-app-key';
+    assert.equal(isAdzunaConfigured(), true);
+    process.env.ADZUNA_APP_KEY = ' ';
+    assert.equal(isAdzunaConfigured(), false);
+  } finally {
+    restoreEnvironment('ADZUNA_APP_ID', previousId);
+    restoreEnvironment('ADZUNA_APP_KEY', previousKey);
+  }
 });
 
 test('temporary source absence does not itself produce an expired status', () => {
@@ -248,6 +317,175 @@ test('Ashby adapter requests compensation from its public job board API', async 
     assert.deepEqual(result.jobs.map(job => job.id), ['a']);
     assert.equal(result.pages, 1);
   });
+});
+
+test('Adzuna fetch uses configured searches, deduplicates results, and carries country codes', async () => {
+  const previous = {
+    id: process.env.ADZUNA_APP_ID,
+    key: process.env.ADZUNA_APP_KEY,
+    countries: process.env.ADZUNA_COUNTRIES,
+    titles: process.env.JOB_SEARCH_TITLES,
+    pageSize: process.env.ADZUNA_PAGE_SIZE,
+    maxPages: process.env.ADZUNA_MAX_PAGES,
+    maxDaysOld: process.env.ADZUNA_MAX_DAYS_OLD
+  };
+  process.env.ADZUNA_APP_ID = 'mock-app-id';
+  process.env.ADZUNA_APP_KEY = 'mock-app-key';
+  process.env.ADZUNA_COUNTRIES = 'in';
+  process.env.JOB_SEARCH_TITLES = 'Java Developer|Backend Developer';
+  process.env.ADZUNA_PAGE_SIZE = '2';
+  process.env.ADZUNA_MAX_PAGES = '2';
+  process.env.ADZUNA_MAX_DAYS_OLD = '30';
+  const urls = [];
+  try {
+    assert.equal(isAdzunaConfigured(), true);
+    const result = await withMockFetch(async url => {
+      const parsed = new URL(url);
+      urls.push(parsed);
+      return Response.json({
+        count: 1,
+        results: [{ id: 'same-id', title: 'Developer', company: { display_name: 'Example Co' } }]
+      });
+    }, () => fetchAdzunaJobs());
+    assert.equal(result.jobs.length, 1);
+    assert.equal(result.fetched, 2);
+    assert.equal(result.pages, 2);
+    assert.equal(result.truncated, false);
+    assert.equal(result.jobs[0].countryCode, 'IN');
+    assert.equal(urls[0].pathname, '/v1/api/jobs/in/search/1');
+    assert.equal(urls[0].searchParams.get('app_id'), 'mock-app-id');
+    assert.equal(urls[0].searchParams.get('app_key'), 'mock-app-key');
+    assert.equal(urls[0].searchParams.get('what'), 'Java Developer');
+    assert.equal(urls[0].searchParams.get('results_per_page'), '2');
+    assert.equal(urls[0].searchParams.get('max_days_old'), '30');
+    assert.equal(urls[0].searchParams.get('sort_by'), 'date');
+    assert.equal(urls[0].searchParams.get('content-type'), 'application/json');
+  } finally {
+    restoreEnvironment('ADZUNA_APP_ID', previous.id);
+    restoreEnvironment('ADZUNA_APP_KEY', previous.key);
+    restoreEnvironment('ADZUNA_COUNTRIES', previous.countries);
+    restoreEnvironment('JOB_SEARCH_TITLES', previous.titles);
+    restoreEnvironment('ADZUNA_PAGE_SIZE', previous.pageSize);
+    restoreEnvironment('ADZUNA_MAX_PAGES', previous.maxPages);
+    restoreEnvironment('ADZUNA_MAX_DAYS_OLD', previous.maxDaysOld);
+  }
+});
+
+test('Adzuna stops requesting pages when a query returns fewer results than the page size', async () => {
+  const previous = {
+    id: process.env.ADZUNA_APP_ID,
+    key: process.env.ADZUNA_APP_KEY,
+    countries: process.env.ADZUNA_COUNTRIES,
+    titles: process.env.JOB_SEARCH_TITLES,
+    pageSize: process.env.ADZUNA_PAGE_SIZE,
+    maxPages: process.env.ADZUNA_MAX_PAGES
+  };
+  process.env.ADZUNA_APP_ID = 'mock-app-id';
+  process.env.ADZUNA_APP_KEY = 'mock-app-key';
+  process.env.ADZUNA_COUNTRIES = 'in';
+  process.env.JOB_SEARCH_TITLES = 'Java Developer';
+  process.env.ADZUNA_PAGE_SIZE = '500';
+  process.env.ADZUNA_MAX_PAGES = '4';
+  let requests = 0;
+  try {
+    const result = await withMockFetch(async url => {
+      requests++;
+      assert.equal(new URL(url).searchParams.get('results_per_page'), '50');
+      return Response.json({ count: 20, results: [{ id: 'one' }] });
+    }, () => fetchAdzunaJobs());
+    assert.equal(requests, 1);
+    assert.equal(result.pages, 1);
+    assert.equal(result.truncated, false);
+  } finally {
+    restoreEnvironment('ADZUNA_APP_ID', previous.id);
+    restoreEnvironment('ADZUNA_APP_KEY', previous.key);
+    restoreEnvironment('ADZUNA_COUNTRIES', previous.countries);
+    restoreEnvironment('JOB_SEARCH_TITLES', previous.titles);
+    restoreEnvironment('ADZUNA_PAGE_SIZE', previous.pageSize);
+    restoreEnvironment('ADZUNA_MAX_PAGES', previous.maxPages);
+  }
+});
+
+test('Adzuna advances page numbers until a short page is returned', async () => {
+  const previous = {
+    id: process.env.ADZUNA_APP_ID,
+    key: process.env.ADZUNA_APP_KEY,
+    countries: process.env.ADZUNA_COUNTRIES,
+    titles: process.env.JOB_SEARCH_TITLES,
+    pageSize: process.env.ADZUNA_PAGE_SIZE,
+    maxPages: process.env.ADZUNA_MAX_PAGES
+  };
+  process.env.ADZUNA_APP_ID = 'mock-app-id';
+  process.env.ADZUNA_APP_KEY = 'mock-app-key';
+  process.env.ADZUNA_COUNTRIES = 'gb';
+  process.env.JOB_SEARCH_TITLES = 'Java Developer';
+  process.env.ADZUNA_PAGE_SIZE = '2';
+  process.env.ADZUNA_MAX_PAGES = '3';
+  const requestedPages = [];
+  const callbackCalls = [];
+  try {
+    const result = await withMockFetch(async url => {
+      const parsed = new URL(url);
+      requestedPages.push(parsed.pathname.split('/').at(-1));
+      return Response.json(requestedPages.length === 1
+        ? { count: 3, results: [{ id: 'one' }, { id: 'two' }] }
+        : { count: 3, results: [{ id: 'three' }] });
+    }, () => fetchAdzunaJobs({ onPage: async page => callbackCalls.push(page.callCount) }));
+    assert.deepEqual(requestedPages, ['1', '2']);
+    assert.deepEqual(callbackCalls, [1, 2]);
+    assert.equal(result.pages, 2);
+    assert.equal(result.fetched, 3);
+    assert.equal(result.jobs.length, 3);
+    assert.equal(result.truncated, false);
+  } finally {
+    restoreEnvironment('ADZUNA_APP_ID', previous.id);
+    restoreEnvironment('ADZUNA_APP_KEY', previous.key);
+    restoreEnvironment('ADZUNA_COUNTRIES', previous.countries);
+    restoreEnvironment('JOB_SEARCH_TITLES', previous.titles);
+    restoreEnvironment('ADZUNA_PAGE_SIZE', previous.pageSize);
+    restoreEnvironment('ADZUNA_MAX_PAGES', previous.maxPages);
+  }
+});
+
+test('Adzuna reports page-cap truncation and never leaks its app key in errors', async () => {
+  const previous = {
+    id: process.env.ADZUNA_APP_ID,
+    key: process.env.ADZUNA_APP_KEY,
+    countries: process.env.ADZUNA_COUNTRIES,
+    titles: process.env.JOB_SEARCH_TITLES,
+    pageSize: process.env.ADZUNA_PAGE_SIZE,
+    maxPages: process.env.ADZUNA_MAX_PAGES
+  };
+  const appKey = 'mock-secret-app-key';
+  process.env.ADZUNA_APP_ID = 'mock-app-id';
+  process.env.ADZUNA_APP_KEY = appKey;
+  process.env.ADZUNA_COUNTRIES = 'in';
+  process.env.JOB_SEARCH_TITLES = 'Java Developer';
+  process.env.ADZUNA_PAGE_SIZE = '2';
+  process.env.ADZUNA_MAX_PAGES = '1';
+  try {
+    const capped = await withMockFetch(async () => Response.json({
+      count: 10,
+      results: [{ id: 'one' }, { id: 'two' }]
+    }), () => fetchAdzunaJobs());
+    assert.equal(capped.truncated, true);
+    assert.equal(capped.pages, 1);
+
+    await withMockFetch(async () => new Response('', { status: 401 }), async () => {
+      await assert.rejects(fetchAdzunaJobs(), error => {
+        assert.equal(error.message, 'Adzuna request failed with HTTP 401.');
+        assert.equal(error.message.includes(appKey), false);
+        return true;
+      });
+    });
+  } finally {
+    restoreEnvironment('ADZUNA_APP_ID', previous.id);
+    restoreEnvironment('ADZUNA_APP_KEY', previous.key);
+    restoreEnvironment('ADZUNA_COUNTRIES', previous.countries);
+    restoreEnvironment('JOB_SEARCH_TITLES', previous.titles);
+    restoreEnvironment('ADZUNA_PAGE_SIZE', previous.pageSize);
+    restoreEnvironment('ADZUNA_MAX_PAGES', previous.maxPages);
+  }
 });
 
 test('provider retry honors transient rate limits', async () => {
