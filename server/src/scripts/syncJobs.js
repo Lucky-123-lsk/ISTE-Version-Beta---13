@@ -1,4 +1,4 @@
-import '../config/env.js';
+import 'dotenv/config';
 import mongoose from 'mongoose';
 import Job from '../models/job.js';
 import JobSource from '../models/jobSource.js';

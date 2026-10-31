@@ -33,7 +33,7 @@ const api = async (path, options = {}) => {
     ...(options.headers || {})
   };
   let response = await requestApi(`/api${path}`, { ...options, headers });
-  if (response.status === 401 && path === '/auth/legacy-demo-never') {
+  if (response.status === 401 && path !== '/auth/demo') {
     const authResponse = await requestApi('/api/auth/demo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,7 +48,7 @@ const api = async (path, options = {}) => {
     });
   }
   const payload = await readApiPayload(response);
-  if (!response.ok) throw new Error(payload.error || `Request failed (HTTP ${response.status}) for ${path}`);
+  if (!response.ok) throw new Error(payload.error || 'Request failed');
   return payload;
 };
 
@@ -60,41 +60,6 @@ const navigation = [
 ];
 const pageTitles = Object.fromEntries(navigation.flatMap(([, items]) => items));
 const applicationStatuses = ['Saved', 'Planned', 'Applied', 'Assessment', 'Interview', 'Rejected', 'Offer', 'Withdrawn'];
-
-function AuthScreen({ onAuthenticated }) {
-  const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', termsAccepted: false, privacyAccepted: false });
-  const [error, setError] = useState('');
-  const [working, setWorking] = useState(false);
-  const submit = async event => {
-    event.preventDefault();
-    setError('');
-    setWorking(true);
-    try {
-      const payload = await api(`/auth/${mode}`, { method: 'POST', body: JSON.stringify(mode === 'register' ? form : { email: form.email, password: form.password }) });
-      localStorage.setItem('careerpilot_token', payload.token);
-      onAuthenticated();
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setWorking(false);
-    }
-  };
-  return <main className="auth-page"><section className="card auth-card">
-    <p className="eyebrow">CAREERPILOT AI</p>
-    <h1>{mode === 'login' ? 'Welcome back' : 'Create your candidate account'}</h1>
-    <p className="muted">Use your own account to save your profile, track applications, and connect assisted application tools.</p>
-    <form onSubmit={submit}>
-      {mode === 'register' && <label>Full name<input required minLength="2" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></label>}
-      <label>Email<input type="email" required value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} /></label>
-      <label>Password<input type="password" required minLength="10" value={form.password} onChange={event => setForm({ ...form, password: event.target.value })} /></label>
-      {mode === 'register' && <><label>Confirm password<input type="password" required minLength="10" value={form.confirmPassword} onChange={event => setForm({ ...form, confirmPassword: event.target.value })} /></label><label className="check-label"><input type="checkbox" required checked={form.termsAccepted} onChange={event => setForm({ ...form, termsAccepted: event.target.checked })} /> I accept the terms.</label><label className="check-label"><input type="checkbox" required checked={form.privacyAccepted} onChange={event => setForm({ ...form, privacyAccepted: event.target.checked })} /> I accept the privacy policy.</label></>}
-      {error && <div className="notice error" role="alert">{error}</div>}
-      <button className="btn primary" disabled={working}>{working ? 'Please wait...' : mode === 'login' ? 'Log in' : 'Create account'}</button>
-    </form>
-    <button className="btn" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>{mode === 'login' ? 'Create a new account' : 'I already have an account'}</button>
-  </section></main>;
-}
 
 function Badge({ children, kind = '' }) {
   return <span className={`badge ${kind}`}>{children}</span>;
@@ -126,8 +91,6 @@ function App() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(true);
-  const [authenticated, setAuthenticated] = useState(Boolean(localStorage.getItem('careerpilot_token')));
-  const [user, setUser] = useState(null);
 
   const refresh = useCallback(async () => {
     const [savedData, savedRecords, applicationData, profileData, plannerData, insightData, evidenceData, privacyData, aiProviderStatus] = await Promise.all([
@@ -176,14 +139,13 @@ function App() {
     window.addEventListener('hashchange', onHashChange);
     const load = async () => {
       try {
-        if (!localStorage.getItem('careerpilot_token')) return;
-        const session = await api('/auth/me');
-        setUser(session.user);
+        if (!localStorage.getItem('careerpilot_token')) {
+          const auth = await api('/auth/demo', { method: 'POST', body: JSON.stringify({ email: 'demo@example.com' }) });
+          localStorage.setItem('careerpilot_token', auth.token);
+        }
         await refresh();
       } catch (loadError) {
-        localStorage.removeItem('careerpilot_token');
-        setAuthenticated(false);
-        setError(`${loadError.message} If this continues, refresh the page after confirming the API is running on port 4000.`);
+        setError(loadError.message);
       } finally {
         setBusy(false);
       }
@@ -221,26 +183,13 @@ function App() {
     () => api('/applications', { method: 'POST', body: JSON.stringify({ jobId: id, status: 'Planned' }) }),
     'Added to your application planner. No application was submitted.'
   );
-  const applyToJob = async job => {
-    if (!job.applicationUrl) {
-      setError('This listing does not provide a reliable official application URL.');
-      return;
-    }
-    const application = await api('/applications', {
-      method: 'POST',
-      body: JSON.stringify({ jobId: job.id, status: 'APPLICATION_STARTED' })
-    });
-    window.open(job.applicationUrl, '_blank', 'noopener,noreferrer');
-    setApplications(current => [application, ...current.filter(item => item.id !== application.id)]);
-    setNotice(`Application started for ${job.title}. Review and submit on the employer website.`);
-  };
 
   const currentTitle = pageTitles[route] || 'Overview';
 
   let page;
   if (route === 'discover' || route === 'saved') {
     const list = route === 'saved' ? savedJobRecords : jobs;
-    page = <JobDiscovery jobs={list} syncStatus={syncStatus} saved={saved} search={search} setSearch={value => { setSearch(value); setJobPage(1); }} location={locationFilter} setLocation={value => { setLocationFilter(value); setJobPage(1); }} country={countryFilter} setCountry={value => { setCountryFilter(value); setJobPage(1); }} workplace={workplaceFilter} setWorkplace={value => { setWorkplaceFilter(value); setJobPage(1); }} employment={employmentFilter} setEmployment={value => { setEmploymentFilter(value); setJobPage(1); }} experience={experienceFilter} setExperience={value => { setExperienceFilter(value); setJobPage(1); }} postedWithinDays={postedWithinDays} setPostedWithinDays={value => { setPostedWithinDays(value); setJobPage(1); }} pagination={jobPagination} page={jobPage} setPage={setJobPage} onSave={toggleSaved} onPlan={addToPlanner} onApply={applyToJob} onTrust={id => { setTrustJobId(id); window.location.hash = 'trustlens'; }} emptySaved={route === 'saved'} />;
+    page = <JobDiscovery jobs={list} syncStatus={syncStatus} saved={saved} search={search} setSearch={value => { setSearch(value); setJobPage(1); }} location={locationFilter} setLocation={value => { setLocationFilter(value); setJobPage(1); }} country={countryFilter} setCountry={value => { setCountryFilter(value); setJobPage(1); }} workplace={workplaceFilter} setWorkplace={value => { setWorkplaceFilter(value); setJobPage(1); }} employment={employmentFilter} setEmployment={value => { setEmploymentFilter(value); setJobPage(1); }} experience={experienceFilter} setExperience={value => { setExperienceFilter(value); setJobPage(1); }} postedWithinDays={postedWithinDays} setPostedWithinDays={value => { setPostedWithinDays(value); setJobPage(1); }} pagination={jobPagination} page={jobPage} setPage={setJobPage} onSave={toggleSaved} onPlan={addToPlanner} onTrust={id => { setTrustJobId(id); window.location.hash = 'trustlens'; }} emptySaved={route === 'saved'} />;
   } else if (route === 'career-dna') {
     page = <CareerDNA profile={profile} jobs={jobs} onSave={next => runAction(async () => { await api('/profile', { method: 'PUT', body: JSON.stringify(next) }); await loadJobs(); }, 'Career DNA profile updated.')} />;
   } else if (route === 'trustlens') {
@@ -269,12 +218,11 @@ function App() {
       }
     }} />;
   } else if (route === 'settings') {
-    page = <Settings onPair={() => api('/extension/pair', { method: 'POST', body: JSON.stringify({ name: 'CareerPilot Chrome extension' }) })} />;
+    page = <Settings />;
   } else {
     page = <Overview applications={applications} saved={saved} jobs={jobs} planner={planner} onPlan={addToPlanner} onTrust={id => { setTrustJobId(id); window.location.hash = 'trustlens'; }} />;
   }
 
-  if (!authenticated) return <AuthScreen onAuthenticated={() => window.location.reload()} />;
   return <div className="app">
     <aside className="side">
       <a className="logo" href="#overview"><i /><span>CareerPilot AI</span></a>
@@ -282,7 +230,7 @@ function App() {
     </aside>
     <div className="content">
       <div className="demo">Job listings come from configured provider feeds; verify the original posting before applying. AI requests are sent only after your explicit consent.</div>
-      <header className="top"><span className="sp" /><span className="muted">{user?.name || user?.email || 'Candidate'}</span><button className="btn sm" onClick={async () => { await api('/auth/logout', { method: 'POST' }); localStorage.removeItem('careerpilot_token'); setAuthenticated(false); }}>Log out</button></header>
+      <header className="top"><span className="sp" /><span className="muted">Demo Candidate</span></header>
       <main>
         <div className="crumb">Workspace / {currentTitle}</div>
         <h1>{currentTitle}</h1>
@@ -324,7 +272,7 @@ function JobDiscovery({
   jobs, syncStatus, saved, search, setSearch, location, setLocation, country, setCountry,
   workplace, setWorkplace, employment, setEmployment, experience, setExperience,
   postedWithinDays, setPostedWithinDays, pagination, page, setPage,
-  onSave, onPlan, onApply, onTrust, emptySaved
+  onSave, onPlan, onTrust, emptySaved
 }) {
   return <>
     <p className="muted">Search collected listings from configured job providers. Source and verification state are shown for each record; India is prioritized, not required.</p>
@@ -350,7 +298,6 @@ function JobDiscovery({
         <button className="btn sm" aria-pressed={saved.includes(job.id)} onClick={() => onSave(job.id)}>{saved.includes(job.id) ? 'Saved' : 'Save job'}</button>
         <button className="btn sm" onClick={() => onTrust(job.id)}>Trust details</button>
         <button className="btn sm primary" disabled={['closed', 'expired'].includes(job.status)} onClick={() => onPlan(job.id)}>Add to planner</button>
-        <button className="btn sm primary" disabled={!job.applicationUrl || ['closed', 'expired'].includes(job.status)} onClick={() => onApply(job)}>{job.applicationUrl ? 'Apply on company site' : 'No official apply link'}</button>
       </div>
     </article>)}
     {!jobs.length && <div className="card empty-state"><h2>{emptySaved ? 'No saved jobs yet' : 'No collected jobs match'}</h2><p className="muted">Check provider configuration and synchronization status, then adjust the filters.</p></div>}
@@ -769,19 +716,8 @@ function PrivacyVault({ privacy, onExport, onDelete }) {
   </>;
 }
 
-function Settings({ onPair }) {
-  const [token, setToken] = useState('');
-  const [error, setError] = useState('');
-  const pair = async () => {
-    try {
-      setError('');
-      const result = await onPair();
-      setToken(result.token);
-    } catch (pairError) {
-      setError(pairError.message);
-    }
-  };
-  return <div className="card"><h2>Candidate control settings</h2><p className="muted">These principles are enforced in the assisted workflow.</p><ul><li>Questionable listings remain visible with uncertainty labels.</li><li>Recommendations can be overridden by the candidate.</li><li>No application is submitted by this product.</li><li>Resume wording is entered and confirmed by the candidate.</li></ul><hr /><h3>Chrome extension</h3><p className="muted">Generate a short-lived scoped token, then paste it into the extension popup. The extension only fills fields for your review.</p><button className="btn primary" onClick={pair}>Generate extension token</button>{token && <div className="notice"><strong>Copy this token now:</strong><code className="token">{token}</code></div>}{error && <div className="notice error">{error}</div>}</div>;
+function Settings() {
+  return <div className="card"><h2>Candidate control settings</h2><p className="muted">These principles are enforced in the demo workflow.</p><ul><li>Questionable listings remain visible with uncertainty labels.</li><li>Recommendations can be overridden by the candidate.</li><li>No application is submitted by this product prototype.</li><li>Resume wording is entered and confirmed by the candidate.</li></ul></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
