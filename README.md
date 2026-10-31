@@ -10,7 +10,6 @@ From the repository root in PowerShell:
 npm install
 npm run install:all
 Copy-Item server\.env.example server\.env
-# Edit server\.env and set MONGODB_URI to your MongoDB Atlas connection string.
 npm run dev
 ```
 
@@ -39,15 +38,9 @@ npm start --prefix server
 7. **Applications and RealityCheck** - Track status history and see observed counts, data sufficiency, and conclusions the current sample cannot support.
 8. **PrivacyVault** - Review data purpose and retention behavior, export the in-memory demo data, or delete the demo account data.
 
-Candidate registration and persistent onboarding are being introduced in phases. The current first phase adds MongoDB-backed users, bcrypt password hashing, JWT access tokens, and an HttpOnly web cookie while retaining the existing demo session for backward compatibility.
-
 ## API areas
 
 - `POST /api/auth/demo` - Issue a short-lived JWT for the demo candidate.
-- `POST /api/auth/register` - Create a candidate account after terms and privacy consent.
-- `POST /api/auth/login` - Authenticate a candidate with a bcrypt-protected password.
-- `POST /api/auth/logout` - Clear the web authentication cookie.
-- `GET /api/auth/me` - Return the authenticated candidate.
 - `GET /api/jobs` - MongoDB-backed search, filters, India-prioritized newest sorting, and pagination.
 - `/api/saved`, `/api/saved/jobs` - Saved listing actions and saved listing records.
 - `GET /api/jobs/sync-status` - Configured provider and latest run status without exposing credentials.
@@ -61,14 +54,13 @@ Candidate registration and persistent onboarding are being introduced in phases.
 
 ## Current implementation limits
 
-- Job records, provider sync logs, users, candidate profiles, saved jobs, planner settings, applications, and application events are persisted in MongoDB for registered accounts. The legacy demo session remains memory-backed for compatibility until frontend onboarding is migrated.
+- Job records and provider sync logs are persisted in MongoDB. Candidate profile, saved-job selections, application records, and other demo workflows remain in memory and reset on API restart.
 - The ingestion system does not scrape websites. Its adapters use TheirStack's documented Search Jobs API and the public Greenhouse, Lever, and Ashby job-board APIs. Public ATS ingestion requires the specific company board identifiers in `JOB_COMPANIES_JSON`.
 - Absence from a fetch does not close or expire a role. Provider fetch failures are logged separately; active observations become `unknown` after the configured verification freshness window.
 - Cross-source merging is conservative: canonical application URLs are preferred; otherwise a strict match requires company domain, normalized title and location, exact normalized-description hash, and a different provider. Same-title records alone are never merged.
 - Resume evidence is illustrative. File uploads and resume parsing are not enabled; provider-backed analysis is disabled by default.
 - AI integration supports server-side Gemini, Groq, or Ollama adapters. No provider is called until configured in `server/.env` and the candidate consents.
-- Real account registration and password hashing are implemented, but production deployment still requires a strong secret, HTTPS, secure cookie configuration, rate limiting, email verification, password recovery, and durable consent/audit records.
-- Resume storage, profile onboarding, extension pairing, and persistent migration of all legacy workflow routes are planned next.
+- Real account registration, production-grade authentication, consent records, secure file storage, and enforceable long-term retention policies still need implementation.
 - There is no job application submission feature. Candidate approval only marks a draft as reviewed.
 
 ## Configure an AI provider later
@@ -99,9 +91,7 @@ Rejection Coach asks a few optional, skippable reflection questions and uses the
 
 ## Configure job ingestion
 
-Set `MONGODB_URI` and the optional ingestion settings in `server/.env`. The API loads this file directly regardless of whether it is started from the repository root or the `server` directory. For MongoDB Atlas, URL-encode special characters in the database username/password, add the current machine's IP address to Atlas Network Access, and use a URI such as `mongodb+srv://<encoded-user>:<encoded-password>@<cluster-host>/careerpilot?retryWrites=true&w=majority`. The `Job`, `JobSource`, and `JobSyncRun` Mongoose models create their indexes when the API connects. There was no prior MongoDB job schema or data migration to preserve.
-
-If Atlas reports an index conflict after a schema change, do not delete the database. The application schemas are designed to retain existing index names/options; restart the API after updating the code so Mongoose can initialize the models.
+Set `MONGODB_URI` and the optional ingestion settings in `server/.env`. The `Job`, `JobSource`, and `JobSyncRun` Mongoose models create their indexes when the API connects. There was no prior MongoDB job schema or data migration to preserve.
 
 TheirStack is the broad search source and requires a server-side `THEIRSTACK_API_KEY`. The adapter uses the documented `POST https://api.theirstack.com/v1/jobs/search` endpoint, Bearer authentication, `job_title_or` role searches, and `limit`/`offset` pagination over the response `data` and `metadata.total_results`. It honors transient `429`/`5xx` responses with bounded retries and `Retry-After` when supplied. Account quotas and limits vary; check the current TheirStack plan and API documentation.
 
@@ -142,8 +132,3 @@ Provider documentation:
 Run adapter and normalization tests with `npm test --prefix server`. Tests use mocked provider responses; they do not represent live fetched jobs.
 
 The original `index.html` remains in the repository as an early standalone prototype reference.
-## Authentication, Apply, and extension workflow
-
-The client now requires a registered account or login before loading the workspace. Registration stores a bcrypt password hash and creates a persistent candidate profile. From Discover Jobs, **Apply on company site** records `APPLICATION_STARTED` and opens the listing's official application URL in a new tab; it never submits the employer form automatically.
-
-The initial Chrome extension scaffold is in [`extension/`](./extension/). Load that folder through Chrome's `chrome://extensions` page with Developer mode enabled. Generate a scoped token from the authenticated app's **Settings** page, paste it into the extension popup, open a supported Greenhouse page, and choose **Fill supported fields**. Fields are filled only when empty and must be reviewed and submitted manually. CAPTCHA, OTP, passwords, and automatic submission are intentionally unsupported.
