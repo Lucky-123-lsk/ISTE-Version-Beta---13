@@ -198,6 +198,47 @@ test('high skill match does not override separately reported eligibility restric
   assert.equal(result.experienceMatch, 'below-known-years');
 });
 
+test('an incomplete skills profile is unassessed rather than scored as zero', () => {
+  const result = matchJob({ requiredSkills: ['React', 'Node.js'] }, {});
+
+  assert.equal(result.skillMatch, null);
+  assert.equal(result.category, 'unassessed');
+  assert.deepEqual(result.missingSkills, ['React', 'Node.js']);
+  assert.match(result.explanation, /not evidence that the candidate is unqualified/);
+});
+
+test('assesses profile skills mentioned in a job description when structured skills are absent', () => {
+  const result = matchJob({
+    title: 'Frontend Engineer',
+    description: 'Build user interfaces with React, JavaScript, and Node.js.'
+  }, {
+    existingSkills: [
+      { name: 'React', confidence: 'verified' },
+      { name: 'JavaScript', confidence: 'self-declared' },
+      { name: 'Node.js', confidence: 'verified' },
+      { name: 'Java', confidence: 'verified' }
+    ]
+  });
+
+  assert.equal(result.skillMatch, 75);
+  assert.equal(result.skillMatchSource, 'profile-skills-in-description');
+  assert.deepEqual(result.matchedSkills, ['React', 'JavaScript', 'Node.js']);
+  assert.match(result.explanation, /3 of 4 assessed profile skills/);
+  assert.match(result.explanation, /not a selection probability/);
+});
+
+test('does not score a listing without skill evidence or a comparable candidate profile', () => {
+  const noListingEvidence = matchJob({ title: 'Frontend Engineer' }, {
+    existingSkills: [{ name: 'React', confidence: 'verified' }]
+  });
+  const noProfile = matchJob({ requiredSkills: ['React'] }, {});
+
+  assert.equal(noListingEvidence.skillMatch, null);
+  assert.match(noListingEvidence.explanation, /no structured skills or readable description/);
+  assert.equal(noProfile.skillMatch, null);
+  assert.match(noProfile.explanation, /No confirmed or self-declared profile skills/);
+});
+
 test('TheirStack uses documented POST search and offset pagination', async () => {
   const previousKey = process.env.THEIRSTACK_API_KEY;
   const previousCountries = process.env.JOB_SEARCH_COUNTRIES;

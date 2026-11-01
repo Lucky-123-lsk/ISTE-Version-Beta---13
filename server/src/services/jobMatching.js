@@ -1,15 +1,50 @@
 const normalize = value => String(value || '').toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').trim();
 
+function containsSkill(text, skill) {
+  const normalizedText = normalize(text);
+  const normalizedSkill = normalize(skill);
+  if (!normalizedText || !normalizedSkill) return false;
+  const escapedSkill = normalizedSkill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${escapedSkill}($|[^a-z0-9])`, 'i').test(normalizedText);
+}
+
 export function matchJob(job, profile = {}) {
-  const knownSkills = (profile.existingSkills || [])
-    .filter(skill => ['verified', 'self-declared'].includes(skill.confidence))
-    .map(skill => normalize(skill.name));
-  const requiredSkills = job.requiredSkills || [];
-  const matchedSkills = requiredSkills.filter(skill => knownSkills.some(known => known === normalize(skill)));
-  const missingSkills = requiredSkills.filter(skill => !matchedSkills.includes(skill));
-  const skillMatch = requiredSkills.length
-    ? Math.round((matchedSkills.length / requiredSkills.length) * 100)
-    : null;
+  const profileSkills = (profile.existingSkills || [])
+    .filter(skill => ['verified', 'self-declared'].includes(skill.confidence) && normalize(skill.name))
+    .filter((skill, index, list) => list.findIndex(item => normalize(item.name) === normalize(skill.name)) === index);
+  const knownSkills = profileSkills.map(skill => normalize(skill.name));
+  const requiredSkills = [...new Set((job.requiredSkills || []).filter(skill => typeof skill === 'string' && normalize(skill)))];
+  const listedSkills = [...new Set((job.skills || []).filter(skill => typeof skill === 'string' && normalize(skill)))];
+  const preferredSkills = [...new Set((job.preferredSkills || []).filter(skill => typeof skill === 'string' && normalize(skill)))];
+  const assessmentSkills = requiredSkills.length ? requiredSkills : [...new Set([...listedSkills, ...preferredSkills])];
+  let matchedSkills;
+  let missingSkills;
+  let skillMatch;
+  let skillMatchSource;
+
+  if (assessmentSkills.length && knownSkills.length) {
+    matchedSkills = assessmentSkills.filter(skill => knownSkills.includes(normalize(skill)));
+    missingSkills = assessmentSkills.filter(skill => !matchedSkills.includes(skill));
+    skillMatch = Math.round((matchedSkills.length / assessmentSkills.length) * 100);
+    skillMatchSource = requiredSkills.length ? 'required-skills' : 'listed-skills';
+  } else if (profileSkills.length && (job.title || job.description)) {
+    const listingText = `${job.title || ''} ${job.description || ''}`;
+    matchedSkills = profileSkills.filter(skill => containsSkill(listingText, skill.name)).map(skill => skill.name);
+    if (String(job.description || '').trim() || matchedSkills.length) {
+      missingSkills = profileSkills.filter(skill => !matchedSkills.includes(skill.name)).map(skill => skill.name);
+      skillMatch = Math.round((matchedSkills.length / profileSkills.length) * 100);
+      skillMatchSource = 'profile-skills-in-description';
+    } else {
+      missingSkills = [];
+      skillMatch = null;
+      skillMatchSource = 'unassessed';
+    }
+  } else {
+    matchedSkills = [];
+    missingSkills = assessmentSkills;
+    skillMatch = null;
+    skillMatchSource = 'unassessed';
+  }
 
   const experienceRequirement = job.experienceRequirements || '';
   const yearsMatch = experienceRequirement.match(/(\d+(?:\.\d+)?)/);
@@ -35,15 +70,21 @@ export function matchJob(job, profile = {}) {
   const category = skillMatch === null ? 'unassessed'
     : skillMatch >= 70 ? 'bridge'
       : skillMatch >= 35 ? 'growth' : 'stretch';
+  const explanation = skillMatch === null
+    ? !profileSkills.length
+      ? 'No confirmed or self-declared profile skills are available to compare. Skill fit is unassessed, not evidence that the candidate is unqualified.'
+      : 'The listing has no structured skills or readable description to compare, so skill fit is unassessed.'
+    : skillMatchSource === 'profile-skills-in-description'
+      ? `${matchedSkills.length} of ${profileSkills.length} assessed profile skills are explicitly mentioned in the job title or description. This is profile overlap, not a selection probability.`
+      : `${matchedSkills.length} of ${assessmentSkills.length} ${skillMatchSource === 'required-skills' ? 'detected required' : 'listed'} skills match the profile. Eligibility is assessed separately and is not overridden by skill fit.`;
   return {
     skillMatch,
+    skillMatchSource,
     matchedSkills,
     missingSkills,
     experienceMatch,
     eligibilityMatch,
     category,
-    explanation: skillMatch === null
-      ? 'The listing does not expose a clear required-skills list, so skill fit is not scored.'
-      : `${matchedSkills.length} of ${requiredSkills.length} detected required skills match the profile. Eligibility is assessed separately and is not overridden by skill fit.`
+    explanation
   };
 }
