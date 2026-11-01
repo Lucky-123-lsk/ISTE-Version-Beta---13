@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CareerPilot Extension Test Form</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #172033; background: #f5f7fb; }
+      body { max-width: 760px; margin: 40px auto; padding: 0 20px; }
+      main { padding: 28px; border: 1px solid #dce3ee; border-radius: 14px; background: white; box-shadow: 0 12px 32px #17203312; }
+      h1 { margin-top: 0; font-size: 24px; }
+      .notice { padding: 12px 14px; border-radius: 8px; color: #854d0e; background: #fefce8; line-height: 1.5; }
+      .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0; }
+      label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+      input { box-sizing: border-box; width: 100%; padding: 10px 11px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; }
+      button { padding: 10px 16px; border: 0; border-radius: 7px; color: white; background: #2563eb; font: inherit; cursor: pointer; }
+      #form-message { min-height: 1.5em; color: #475569; }
+      .muted { color: #64748b; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Extension test form</h1>
+      <p class="notice"><strong>Safe demo:</strong> this page uses sample details only. Nothing is sent to an employer or submitted. Open the CareerPilot extension and click “Fill supported fields on this page.”</p>
+      <form id="test-form">
+        <div class="fields">
+          <label for="full-name">Full name<input id="full-name" name="name" autocomplete="name"></label>
+          <label for="email">Email<input id="email" name="email" type="email" autocomplete="email"></label>
+          <label for="phone">Phone number<input id="phone" name="phone" type="tel" autocomplete="tel"></label>
+          <label for="location">City<input id="location" name="location" autocomplete="address-level2"></label>
+          <label for="linkedin">LinkedIn profile<input id="linkedin" name="linkedin_url"></label>
+          <label for="github">GitHub profile<input id="github" name="github_url"></label>
+          <label for="portfolio">Personal website<input id="portfolio" name="personal_website"></label>
+          <label for="existing-email">Already-filled email<input id="existing-email" type="email" value="keep-this@example.test"></label>
+          <label for="company">Company name<input id="company" name="company"></label>
+        </div>
+        <button type="submit">Demo submit (does nothing)</button>
+        <p id="form-message" class="muted" role="status"></p>
+      </form>
+    </main>
+    <script>
+      document.getElementById('test-form').addEventListener('submit', event => {
+        event.preventDefault();
+        document.getElementById('form-message').textContent = 'Safe demo: no data was submitted.';
+      });
+    </script>
+  </body>
+</html>

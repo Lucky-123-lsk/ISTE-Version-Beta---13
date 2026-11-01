@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CareerPilot AI</title><style>body{font:14px system-ui;width:300px;padding:14px;color:#172033}label{display:block;margin:10px 0 4px}input{box-sizing:border-box;width:100%;padding:8px}button{margin-top:12px;padding:9px;width:100%;cursor:pointer}.muted{color:#667085;font-size:12px}.error{color:#b42318}.pill{float:right;border-radius:99px;background:#ecfdf3;color:#027a48;padding:3px 7px;font-size:11px}</style></head>
+  <body>
+    <header><strong>CareerPilot AI</strong><span class="pill">Review only</span></header>
+    <p class="muted">Fills supported profile fields only. Review every value; the extension never submits forms.</p>
+    <label for="api">API origin</label><input id="api" value="http://localhost:4000">
+    <label for="token">Extension token</label><input id="token" type="password" autocomplete="off">
+    <button id="save">Save connection</button>
+    <button id="fill">Fill supported fields on this page</button>
+    <button id="open-test" class="secondary">Open local test form</button>
+    <button id="clear" class="secondary">Clear local connection</button>
+    <p id="message" class="muted"></p>
+    <script src="popup.js"></script>
+  </body>
+</html>
